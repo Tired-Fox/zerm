@@ -11,7 +11,7 @@ pub fn main() !void {
         if (deinit_status == .leak) @panic("Memory Leak");
     }
 
-    var terminal = try Terminal.init();
+    var terminal = try Terminal.init(allocator);
     defer terminal.deinit();
 
     {
@@ -29,55 +29,40 @@ pub fn main() !void {
     }
 
     {
-        std.debug.print("{any}", .{terminal.kbhit()});
+        try terminal.print("Enter a character: ", .{});
         const char = try terminal.read();
         if (char) |c| {
             try terminal.print("char: {c}\n", .{c});
         }
-        std.debug.print("{any}", .{terminal.kbhit()});
     }
-
-    try terminal.context.enter();
-    defer terminal.context.exit();
 
     {
-        try terminal.print("\x1b[s\x1b[9999;9999H\x1b[6n\x1b[u", .{});
-        const result = try terminal.readUntil(allocator, 'R');
-        if (result) |r| {
-            defer allocator.free(r);
-            std.debug.print("RESPONSE: ", .{});
-            for (r) |c| {
-                switch (c) {
-                    27 => std.debug.print("␛", .{}),
-                    7 => std.debug.print("\\a", .{}),
-                    8 => std.debug.print("\\b", .{}),
-                    9 => std.debug.print("\\t", .{}),
-                    10 => std.debug.print("\\n", .{}),
-                    11 => std.debug.print("\\v", .{}),
-                    12 => std.debug.print("\\f", .{}),
-                    13 => std.debug.print("\\r", .{}),
-                    else => |v| {
-                        std.debug.print("{c}", .{v});
-                    },
-                }
-            }
-            std.debug.print("\n", .{});
+        try terminal.enable_raw_mode();
+        for (0..10) |_| {
+            const result = try terminal.cursorPos();
+            std.debug.print("RESULTS FOUND {any}\n", .{result});
         }
+        terminal.disable_raw_mode();
     }
 
-    std.debug.print("q/ctrl+c to quit\n\n", .{});
-    while (true) {
-        if (terminal.kbhit()) {
-            var char = (try terminal.read()).?;
-            if (char == 'q') {
-                break;
-            } else if (char == '\r') {
-                char = '\n';
-            } else if (char == 3) {
-                std.debug.print("\nctrl+c\n", .{});
-                break;
+    {
+        try terminal.enable_raw_mode();
+        // errdefer terminal.disable_raw_mode();
+        std.debug.print("q/ctrl+c to quit\n\n", .{});
+        while (true) {
+            if (terminal.kbhit()) {
+                var char = (try terminal.read()).?;
+                if (char == 'q') {
+                    break;
+                } else if (char == '\r') {
+                    char = '\n';
+                } else if (char == 3) {
+                    std.debug.print("\nctrl+c\n", .{});
+                    break;
+                }
+                std.debug.print("{c}", .{char});
             }
-            std.debug.print("{c}", .{char});
         }
+        terminal.disable_raw_mode();
     }
 }
