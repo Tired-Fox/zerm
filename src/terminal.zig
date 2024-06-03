@@ -1,7 +1,10 @@
 const std = @import("std");
 const Size = @import("root.zig").Size;
+const Point = @import("root.zig").Point;
 const builtin = @import("builtin");
-const Query = @import("query.zig").Query;
+const Query = @import("ansi.zig").Query;
+const Action = @import("ansi.zig").Action;
+const Cursor = @import("ansi.zig").Cursor;
 
 const IMPORTS = switch (builtin.target.os.tag) {
     .windows => struct {
@@ -22,7 +25,7 @@ const Error = error{
     InvalidCusorPos,
 };
 
-const Context = switch (@import("builtin").target.os.tag) {
+const Context = switch (builtin.target.os.tag) {
     .windows => struct {
         const console = @import("zigwin32").system.console;
         const foundation = @import("zigwin32").foundation;
@@ -44,7 +47,7 @@ const Context = switch (@import("builtin").target.os.tag) {
         context_count: usize = 0,
         _old_stdin_mode: console.CONSOLE_MODE = console.CONSOLE_MODE{},
         _old_stdout_mode: console.CONSOLE_MODE = console.CONSOLE_MODE{},
-        _old_cursor_pos: Size = Size{ 0, 0 },
+        _old_cursor_pos: Point = Point{ 0, 0 },
 
         pub fn init() @This() {
             return .{};
@@ -149,13 +152,21 @@ pub fn init(allocator: std.mem.Allocator) !Terminal {
 
 /// Enter raw terminal mode clearing stdin in the process
 pub fn enable_raw_mode(self: *Terminal) !void {
-    // TODO: Alternate temp buffer and store old cursor position
     try self.context.enter();
+    self.context._old_cursor_pos = try self.cursorPos();
+    try self.execute(.{
+        Action.EnterAlternateBuffer,
+        Cursor.pos(0, 0),
+    });
 }
 
 /// Exit raw terminal mode
-pub fn disable_raw_mode(self: *Terminal) void {
-    // TODO: Exit alt buffer and restore cursor position
+pub fn disable_raw_mode(self: *Terminal) !void {
+    const cursor = self.context._old_cursor_pos;
+    try self.execute(.{
+        Action.ExitAlternateBuffer,
+        Cursor.pos(cursor[0], cursor[1]),
+    });
     self.context.exit();
 }
 
@@ -192,6 +203,36 @@ pub fn print(self: *Terminal, comptime fmt: []const u8, args: anytype) !void {
     try self.flush();
 }
 
+/// Execute a series of actions and prints and flush at the end.
+///
+/// Note: By using a tuple as the argument both strings and actiongs can be combined
+///
+/// @param operations Tuple of actions and strings
+/// @return error if out of memory or failed to write to the terminal
+pub fn execute(self: *Terminal, ops: anytype) !void {
+    inline for (ops) |item| {
+        const t = @TypeOf(item);
+        switch (t) {
+            u8 => try self.write("{c}", .{item}),
+            u21 => {
+                var buff: [4]u8 = [_]u8{0} ** 4;
+                const length = try std.unicode.utf8Encode(item, &buff);
+                try self.write("{s}", .{buff[0..length]});
+            },
+            u16 => {
+                var buff: [2]u8 = [_]u8{0} ** 2;
+                const length = try std.unicode.utf16LeToUtf8(&buff, [1]u16{item});
+                try self.write("{s}", .{buff[0..length]});
+            },
+            Action => try self.write("{s}", .{item}),
+            else => {
+                try self.write("{s}", .{item});
+            },
+        }
+    }
+    try self.flush();
+}
+
 /// Check if the stdin buffer has data to read
 ///
 /// @return true if there is data in the buffer
@@ -199,7 +240,7 @@ pub fn kbhit(self: *Terminal) bool {
     _ = self;
     switch (@import("builtin").target.os.tag) {
         .windows => {
-            const console = IMPORTS.console;
+            const console = @import("zigwin32").system.console;
             var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
             defer arena.deinit();
             const alloc = arena.allocator();
@@ -245,6 +286,10 @@ pub fn deinit(self: *Terminal) void {
     _ = self;
 }
 
+// ------------------------------------
+// --- Terminal Querying Functions ----
+// ------------------------------------
+
 /// Query the terminal for the size in cells
 ///
 /// @return Size of the terminal as a tuple of u16; width and height
@@ -273,7 +318,7 @@ pub fn getSize(self: *const Terminal) Size {
 /// Query the terminal for the cursor position
 ///
 /// @return Tuple of u16; x and y position
-pub fn cursorPos(self: *Terminal) !Size {
+pub fn cursorPos(self: *Terminal) !Point {
     // Query for the cursor position then read the response
     try self.print("{s}", .{Query.CursorPos});
     const result = try self.readUntil(self.allocator, 'R');

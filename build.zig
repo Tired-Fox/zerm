@@ -48,6 +48,16 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("term", &lib.root_module);
 
+    switch (@import("builtin").target.os.tag) {
+        .windows => {
+            exe.root_module.addImport(
+                "zigwin32",
+                b.dependency("zigwin32", .{}).module("zigwin32"),
+            );
+        },
+        else => {},
+    }
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
