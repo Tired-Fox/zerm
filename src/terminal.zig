@@ -119,6 +119,7 @@ const Context = switch (builtin.target.os.tag) {
     },
 };
 
+arena: std.heap.ArenaAllocator,
 allocator: std.mem.Allocator,
 
 stdout: std.fs.File,
@@ -133,13 +134,15 @@ context: Context,
 ///
 /// @param allocator Allocator to use for the terminal query operations like getting cursor position
 /// @return New terminal instance
-pub fn init(allocator: std.mem.Allocator) !Terminal {
+pub fn init() !Terminal {
     const stdout = std.io.getStdOut();
     const stdin = std.io.getStdIn();
     const stderr = std.io.getStdErr();
 
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     return .{
-        .allocator = allocator,
+        .allocator = arena.allocator(),
+        .arena = arena,
         .context = Context.init(),
         .out = std.io.bufferedWriter(stdout.writer()),
         .stdout = std.io.getStdOut(),
@@ -283,7 +286,7 @@ pub fn readUntil(self: *Terminal, allocator: std.mem.Allocator, delim: u8) !?[]u
 
 /// Free any resources used to query and manage the terminal state
 pub fn deinit(self: *Terminal) void {
-    _ = self;
+    self.arena.deinit();
 }
 
 // ------------------------------------
