@@ -2,6 +2,16 @@
 
 const std = @import("std");
 
+const OS = @import("builtin").target.os.tag;
+const EXAMPLES_DIR = "examples/";
+const EXAMPLES = &.{
+    "print",
+    "query",
+    "input",
+    "actions",
+    "styling",
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -9,8 +19,15 @@ pub fn build(b: *std.Build) void {
     // ========================================================================
     //                                  setup
     // ========================================================================
+
+    // Options
+
+    const example_name = b.option([]const u8, "example", "Run a specific example after building");
+    const list_examples = b.option(bool, "list-examples", "List all available examples") orelse false;
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // Versions and Paths
 
     const version = std.SemanticVersion{ .major = 0, .minor = 0, .patch = 0 };
     const lib_path = b.path("src/root.zig");
@@ -69,38 +86,38 @@ pub fn build(b: *std.Build) void {
     //                                 examples
     // ========================================================================
 
-    const examples_step = b.step("examples", "Run examples");
-    inline for (EXAMPLES) |NAME| {
-        const example = b.addExecutable(.{
-            .name = NAME,
-            .target = target,
-            .version = version,
-            .optimize = optimize,
-            .root_source_file = b.path(EXAMPLES_DIR ++ NAME ++ "/main.zig"),
-        });
-
-        example.root_module.addImport("term", lib_mod);
-        const example_run = b.addRunArtifact(example);
-
-        // This allows the user to pass arguments to the application in the build
-        // command itself, like this: `zig build examples -- arg1 arg2 etc`
-        if (b.args) |args| {
-            example_run.addArgs(args);
+    if (list_examples) {
+        inline for (EXAMPLES, 1..) |NAME, i| {
+            std.debug.print("{d}. {s}\n", .{ i, NAME });
         }
-
-        examples_step.dependOn(&example_run.step);
+        return;
     }
 
-    // Use this to make it so `zig build` also runs examples
-    // b.default_step.dependOn(examples_step);
-}
+    // Allow the user to define a specificly defined example to run
+    if (example_name) |name| {
+        inline for (EXAMPLES) |NAME| {
+            if (std.mem.eql(u8, NAME, name)) {
+                const example = b.addExecutable(.{
+                    .name = NAME,
+                    .target = target,
+                    .version = version,
+                    .optimize = optimize,
+                    .root_source_file = b.path(EXAMPLES_DIR ++ NAME ++ "/main.zig"),
+                });
 
-const OS = @import("builtin").target.os.tag;
-const EXAMPLES_DIR = "examples/";
-const EXAMPLES = &.{
-    // "print",
-    "query",
-    // "input",
-    // "actions",
-    // "styling",
-};
+                example.root_module.addImport("term", lib_mod);
+                const example_run = b.addRunArtifact(example);
+
+                // This allows the user to pass arguments to the application in the build
+                // command itself, like this: `zig build examples -- arg1 arg2 etc`
+                if (b.args) |args| {
+                    example_run.addArgs(args);
+                }
+
+                b.default_step.dependOn(&example_run.step);
+
+                break;
+            }
+        }
+    }
+}
