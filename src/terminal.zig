@@ -9,10 +9,19 @@ const Screen = @import("ansi.zig").Screen;
 
 const IMPORTS = switch (builtin.target.os.tag) {
     .windows => struct {
-        pub const console = @import("zigwin32").system.console;
+        const console = @import("zigwin32").system.console;
+
         pub const STDIN = console.STD_INPUT_HANDLE;
         pub const STDOUT = console.STD_OUTPUT_HANDLE;
         pub const STDERR = console.STD_ERROR_HANDLE;
+
+        pub const CONSOLE_MODE = console.CONSOLE_MODE;
+        pub const INPUT_RECORD = console.INPUT_RECORD;
+
+        pub const GetStdHandle = console.GetStdHandle;
+        pub const GetConsoleMode = console.GetConsoleMode;
+        pub const SetConsoleMode = console.SetConsoleMode;
+        pub const PeekConsoleInputW = console.PeekConsoleInputW;
     },
     .linux => struct {
         const termios = std.os.linux.termios;
@@ -99,17 +108,19 @@ const Error = error{
 
 const Context = switch (builtin.target.os.tag) {
     .windows => struct {
-        const console = @import("zigwin32").system.console;
-        const foundation = @import("zigwin32").foundation;
         const STDIN = IMPORTS.STDIN;
         const STDOUT = IMPORTS.STDOUT;
+        const CONSOLE_MODE = IMPORTS.CONSOLE_MODE;
+        const GetStdHandle = IMPORTS.GetStdHandle;
+        const GetConsoleMode = IMPORTS.GetConsoleMode;
+        const SetConsoleMode = IMPORTS.SetConsoleMode;
 
-        const ENABLE_STDIN_RAW_MODE = console.CONSOLE_MODE{
+        var ENABLE_STDIN_RAW_MODE = CONSOLE_MODE{
             .ENABLE_MOUSE_INPUT = 1,
             .ENABLE_VIRTUAL_TERMINAL_INPUT = 1,
             .ENABLE_EXTENDED_FLAGS = 1,
         };
-        const ENABLE_STDOUT_RAW_MODE = console.CONSOLE_MODE{
+        var ENABLE_STDOUT_RAW_MODE = CONSOLE_MODE{
             // Same as ENABLE_PROCESSED_OUTPUT
             .ENABLE_PROCESSED_INPUT = 1,
             // Same as ENABLE_VIRTUAL_TERMINAL_PROCESSING bitwise
@@ -117,8 +128,8 @@ const Context = switch (builtin.target.os.tag) {
         };
 
         context_count: usize = 0,
-        _old_stdin_mode: console.CONSOLE_MODE = console.CONSOLE_MODE{},
-        _old_stdout_mode: console.CONSOLE_MODE = console.CONSOLE_MODE{},
+        _old_stdin_mode: CONSOLE_MODE = CONSOLE_MODE{},
+        _old_stdout_mode: CONSOLE_MODE = CONSOLE_MODE{},
         _old_cursor_pos: Point = Point{ 0, 0 },
 
         pub fn init() @This() {
@@ -129,35 +140,35 @@ const Context = switch (builtin.target.os.tag) {
         ///
         /// Note: This should only be called once at the start of an application
         pub fn enter(self: *@This()) !void {
-            const stdin = console.GetStdHandle(STDIN);
-            const stdout = console.GetStdHandle(STDOUT);
+            const stdin = GetStdHandle(STDIN);
+            const stdout = GetStdHandle(STDOUT);
 
             self.context_count += 1;
             if (self.context_count > 1) {
                 return;
             }
 
-            var mode = console.CONSOLE_MODE{};
-            if (console.GetConsoleMode(stdin, &mode) != 0) {
+            var mode = CONSOLE_MODE{};
+
+            if (GetConsoleMode(stdin, &mode) != 0) {
                 self._old_stdin_mode = mode;
             } else {
                 return Error.UnkownStdinMode;
             }
-            errdefer _ = console.SetConsoleMode(stdin, self._old_stdin_mode);
+            errdefer _ = SetConsoleMode(stdin, self._old_stdin_mode);
 
-            mode = console.CONSOLE_MODE{};
-            if (console.GetConsoleMode(stdout, &mode) != 0) {
+            if (GetConsoleMode(stdout, &mode) != 0) {
                 self._old_stdout_mode = mode;
             } else {
                 return Error.UnkownStdoutMode;
             }
-            errdefer _ = console.SetConsoleMode(stdout, self._old_stdout_mode);
+            errdefer _ = SetConsoleMode(stdout, self._old_stdout_mode);
 
-            if (console.SetConsoleMode(stdin, ENABLE_STDIN_RAW_MODE) == 0) {
+            if (SetConsoleMode(stdin, ENABLE_STDIN_RAW_MODE) == 0) {
                 return Error.InvalidStdinEntry;
             }
 
-            if (console.SetConsoleMode(stdout, ENABLE_STDOUT_RAW_MODE) == 0) {
+            if (SetConsoleMode(stdout, ENABLE_STDOUT_RAW_MODE) == 0) {
                 return Error.InvalidStdoutEntry;
             }
         }
@@ -166,8 +177,8 @@ const Context = switch (builtin.target.os.tag) {
         ///
         /// Note: This should only be called once at the end of an application
         pub fn exit(self: *@This()) !void {
-            const stdin = console.GetStdHandle(STDIN);
-            const stdout = console.GetStdHandle(STDOUT);
+            const stdin = GetStdHandle(STDIN);
+            const stdout = GetStdHandle(STDOUT);
 
             if (self.context_count > 1) {
                 self.context_count -= 1;
@@ -177,8 +188,8 @@ const Context = switch (builtin.target.os.tag) {
             }
 
             self.context_count -= 1;
-            _ = console.SetConsoleMode(stdin, self._old_stdin_mode);
-            _ = console.SetConsoleMode(stdout, self._old_stdout_mode);
+            _ = SetConsoleMode(stdin, self._old_stdin_mode);
+            _ = SetConsoleMode(stdout, self._old_stdout_mode);
         }
     },
     .linux => struct {
@@ -341,10 +352,10 @@ pub fn kbhit(self: *Terminal) bool {
         .windows => {
             const console = @import("zigwin32").system.console;
 
-            const buff: [1]console.INPUT_RECORD = undefined;
+            var buff: [1]console.INPUT_RECORD = undefined;
 
             var count: u32 = 0;
-            const result = console.PeekConsoleInputW(console.GetStdHandle(IMPORTS.STDIN), buff.ptr, 1, &count);
+            const result = IMPORTS.PeekConsoleInputW(IMPORTS.GetStdHandle(IMPORTS.STDIN), &buff, 1, &count);
             return result != 0 and count > 0;
         },
         .linux => {
