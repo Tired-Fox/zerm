@@ -220,6 +220,8 @@ pub const Screen = union(enum) {
     erase: Erase,
     title: []const u8,
     soft_reset: void,
+    save: void,
+    restore: void,
 
     pub fn scroll_up(u: u16) @This() {
         return .{ .scroll_up = u };
@@ -241,6 +243,14 @@ pub const Screen = union(enum) {
         return .{ .soft_reset = {} };
     }
 
+    pub fn save() @This() {
+        return .{ .save = {} };
+    }
+
+    pub fn restore() @This() {
+        return .{ .restore = {} };
+    }
+
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (value) {
             .scroll_up => |u| try writer.print("\x1b[{d}S", .{u}),
@@ -248,6 +258,8 @@ pub const Screen = union(enum) {
             .erase => |e| try writer.print("\x1b[{d}J", .{@intFromEnum(e)}),
             .title => |t| try writer.print("\x1b]0;{s}\x07", .{t}),
             .soft_reset => try writer.print("\x1b[!p", .{}),
+            .save => try writer.print("\x1b[47h", .{}),
+            .restore => try writer.print("\x1b[47l", .{}),
         }
     }
 };

@@ -107,6 +107,7 @@ pub fn build(b: *std.Build) void {
 
                 example.root_module.addImport("term", lib_mod);
                 const example_run = b.addRunArtifact(example);
+                b.installArtifact(example);
 
                 // This allows the user to pass arguments to the application in the build
                 // command itself, like this: `zig build examples -- arg1 arg2 etc`

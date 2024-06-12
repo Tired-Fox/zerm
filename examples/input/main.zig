@@ -18,14 +18,15 @@ pub fn main() !void {
         try terminal.enable_raw_mode();
         // Reset the terminal in case it was left in a weird state
         errdefer terminal.disable_raw_mode() catch unreachable;
-        try terminal.print("q/ctrl+c to quit\n\n", .{});
+        try terminal.print("q/ctrl+c to quit\r\n\r\n", .{});
         while (true) {
             if (terminal.kbhit()) {
-                var char = (try terminal.read()).?;
+                const char = (try terminal.read()).?;
                 if (char == 'q') {
                     break;
                 } else if (char == '\r') {
-                    char = '\n';
+                    try terminal.print("\r\n", .{});
+                    continue;
                 } else if (char == 3) {
                     try terminal.print("\nctrl+c\n", .{});
                     break;

@@ -11,13 +11,13 @@ pub fn main() !void {
         try terminal.enable_raw_mode();
         // In case of unhandled error reset terminal to not be in raw mode
         errdefer terminal.disable_raw_mode() catch unreachable;
-        try terminal.print("{any}\n", .{try terminal.cursorPos()});
+        try terminal.print("{any}\r\n", .{try terminal.cursorPos()});
         for (0..5) |_| {
             const result = terminal.cursorPos() catch {
-                try terminal.print("Failed to get cursor position\n", .{});
+                try terminal.print("Failed to get cursor position\r\n", .{});
                 continue;
             };
-            try terminal.print("RESULTS FOUND {any}\n", .{result});
+            try terminal.print("RESULTS FOUND {any}\r\n", .{result});
             std.time.sleep(1 * std.time.ns_per_s);
         }
         try terminal.disable_raw_mode();
