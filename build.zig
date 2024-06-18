@@ -10,6 +10,7 @@ const EXAMPLES = &.{
     "input",
     "actions",
     "styling",
+    "spinners",
 };
 
 // Although this function looks imperative, note that its job is to

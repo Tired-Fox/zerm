@@ -10,6 +10,8 @@ pub const Style = @import("ansi.zig").Style;
 pub const Color = @import("ansi.zig").Color;
 pub const XTerm = @import("ansi.zig").XTerm;
 
+pub const Key = @import("events.zig").Key;
+
 pub const Rune = struct {
     value: u21,
 

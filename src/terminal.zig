@@ -1,101 +1,17 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+const os = @import("os.zig").os;
 const Size = @import("root.zig").Size;
 const Point = @import("root.zig").Point;
-const builtin = @import("builtin");
+
+const Event = @import("events.zig").Event;
 const Query = @import("ansi.zig").Query;
 const Action = @import("ansi.zig").Action;
 const Cursor = @import("ansi.zig").Cursor;
 const Screen = @import("ansi.zig").Screen;
 
-const IMPORTS = switch (builtin.target.os.tag) {
-    .windows => struct {
-        const console = @import("zigwin32").system.console;
-
-        pub const STDIN = console.STD_INPUT_HANDLE;
-        pub const STDOUT = console.STD_OUTPUT_HANDLE;
-        pub const STDERR = console.STD_ERROR_HANDLE;
-
-        pub const CONSOLE_MODE = console.CONSOLE_MODE;
-        pub const INPUT_RECORD = console.INPUT_RECORD;
-
-        pub const GetStdHandle = console.GetStdHandle;
-        pub const GetConsoleMode = console.GetConsoleMode;
-        pub const SetConsoleMode = console.SetConsoleMode;
-        pub const PeekConsoleInputW = console.PeekConsoleInputW;
-    },
-    .linux => struct {
-        const termios = std.os.linux.termios;
-        const tcgetattr = std.os.linux.tcgetattr;
-        const tcsetattr = std.os.linux.tcsetattr;
-        const tc_lflag = std.os.linux.tc_lflag_t;
-        const tc_iflag = std.os.linux.tc_iflag_t;
-        const tc_oflag = std.os.linux.tc_oflag_t;
-        const tc_cflag = std.os.linux.tc_cflag_t;
-
-        const Error = error{
-            GetAttrFailed,
-            SetAttrFailed,
-        };
-
-        pub fn get_term_state(state: *termios) !void {
-            if (tcgetattr(std.os.linux.STDIN_FILENO, state) == -1) {
-                return error.GetAttrFailed;
-            }
-        }
-
-        pub fn set_term_state(state: *const termios) !void {
-            if (tcsetattr(std.os.linux.STDIN_FILENO, .NOW, state) == -1) {
-                return error.SetAttrFailed;
-            }
-        }
-
-        pub fn setup_flags(flags: *termios) void {
-            setup_lflags(flags);
-            setup_iflags(flags);
-            setup_oflags(flags);
-            setup_cflags(flags);
-            setup_cc(flags, 0, 1);
-        }
-
-        pub fn setup_lflags(state: *termios) void {
-            // Stop term from displaying pressed keys.
-            state.lflag.ECHO = false;
-            // Disable canonical ('cooked') input mode. Allows for reading input byte-wise instead of line-wise.
-            state.lflag.ICANON = false;
-            // Disable signals for Ctrl-C (SIGINT) and Ctrl-Z (SIGTSTP). Processed as normal escape sequences.
-            state.lflag.ISIG = false;
-            // Disable input processing. Allows handling of Ctrl-V instead of it being intercepted by the terminal.
-            state.lflag.IEXTEN = false;
-        }
-
-        pub fn setup_iflags(state: *termios) void {
-            // Disable software control flow. Allows handling of Ctrl-S and Ctrl-Q.
-            state.iflag.IXON = false;
-            // Disable converting carriage returns to newliness. Allows handling of Ctrl-M and Ctrl-J.
-            state.iflag.ICRNL = false;
-            // Disable converting SIGINT on break condition. For backwards compatibility.
-            state.iflag.BRKINT = false;
-            // Disable parity checking. Backwards compatibility.
-            state.iflag.INPCK = false;
-            // Disable stripping of 8th bit. Backwards compatibility.
-            state.iflag.ISTRIP = false;
-        }
-
-        pub fn setup_oflags(state: *termios) void {
-            state.oflag.OPOST = false;
-        }
-
-        pub fn setup_cflags(state: *termios) void {
-            state.cflag.CSIZE = .CS8;
-        }
-
-        pub fn setup_cc(state: *termios, timeout: u8, min_bytes: u8) void {
-            state.cc[@intFromEnum(std.os.linux.V.TIME)] = timeout;
-            state.cc[@intFromEnum(std.os.linux.V.MIN)] = min_bytes;
-        }
-    },
-    else => struct {},
-};
+const parseEscapeSequence = @import("events.zig").parseEscapeSequence;
 
 const Terminal = @This();
 const Error = error{
@@ -104,16 +20,17 @@ const Error = error{
     InvalidStdinEntry,
     InvalidStdoutEntry,
     InvalidCusorPos,
+    ReadConsoleInputFailure,
 };
 
 const Context = switch (builtin.target.os.tag) {
     .windows => struct {
-        const STDIN = IMPORTS.STDIN;
-        const STDOUT = IMPORTS.STDOUT;
-        const CONSOLE_MODE = IMPORTS.CONSOLE_MODE;
-        const GetStdHandle = IMPORTS.GetStdHandle;
-        const GetConsoleMode = IMPORTS.GetConsoleMode;
-        const SetConsoleMode = IMPORTS.SetConsoleMode;
+        const STDIN = os.STDIN;
+        const STDOUT = os.STDOUT;
+        const CONSOLE_MODE = os.CONSOLE_MODE;
+        const GetStdHandle = os.GetStdHandle;
+        const GetConsoleMode = os.GetConsoleMode;
+        const SetConsoleMode = os.SetConsoleMode;
 
         var ENABLE_STDIN_RAW_MODE = CONSOLE_MODE{
             .ENABLE_MOUSE_INPUT = 1,
@@ -193,7 +110,7 @@ const Context = switch (builtin.target.os.tag) {
         }
     },
     .linux => struct {
-        _old_mode: IMPORTS.termios = undefined,
+        _old_mode: os.termios = undefined,
         _old_cursor_pos: Point = Point{ 0, 0 },
 
         pub fn init() @This() {
@@ -201,16 +118,16 @@ const Context = switch (builtin.target.os.tag) {
         }
 
         pub fn enter(self: *@This()) !void {
-            try IMPORTS.get_term_state(&self._old_mode);
+            try os.get_term_state(&self._old_mode);
 
             var raw = self._old_mode;
-            IMPORTS.setup_flags(&raw);
+            os.setup_flags(&raw);
 
-            try IMPORTS.set_term_state(&raw);
+            try os.set_term_state(&raw);
         }
 
         pub fn exit(self: *@This()) !void {
-            try IMPORTS.set_term_state(&self._old_mode);
+            try os.set_term_state(&self._old_mode);
         }
     },
     else => struct {
@@ -346,16 +263,12 @@ pub fn execute(self: *Terminal, ops: anytype) !void {
 /// Check if the stdin buffer has data to read
 ///
 /// @return true if there is data in the buffer
-pub fn kbhit(self: *Terminal) bool {
+pub fn hasEvent(self: *Terminal) bool {
     _ = self;
     switch (@import("builtin").target.os.tag) {
         .windows => {
-            const console = @import("zigwin32").system.console;
-
-            var buff: [1]console.INPUT_RECORD = undefined;
-
             var count: u32 = 0;
-            const result = IMPORTS.PeekConsoleInputW(IMPORTS.GetStdHandle(IMPORTS.STDIN), &buff, 1, &count);
+            const result = os.GetNumberOfConsoleInputEvents(os.GetStdHandle(os.STDIN), &count);
             return result != 0 and count > 0;
         },
         .linux => {
@@ -377,6 +290,95 @@ pub fn kbhit(self: *Terminal) bool {
 /// @return error if out of memory or failed to read from the terminal
 pub fn read(self: *Terminal) !?u8 {
     return try self.in.reader().readByte();
+}
+
+pub fn readEvent(self: *Terminal) !?Event {
+    _ = self;
+    switch (builtin.target.os.tag) {
+        .windows => {
+            var num_read: u32 = 0;
+            if (os.GetNumberOfConsoleInputEvents(os.GetStdHandle(os.STDIN), &num_read) == 0) {
+                return error.ReadConsoleInputFailure;
+            }
+
+            if (num_read > 2) {
+                var checkBuff: [2]os.INPUT_RECORD = [_]os.INPUT_RECORD{undefined} ** 2;
+
+                // TODO: Peek and check for escape sequence
+                if (os.PeekConsoleInput(os.GetStdHandle(os.STDIN), &checkBuff, 2, &num_read) == 0) {
+                    return error.ReadConsoleInputFailure;
+                }
+
+                const isLeadingEscape = checkBuff[0].EventType == 0x0001 and checkBuff[0].Event.KeyEvent.uChar.AsciiChar == 27;
+                const isEscapeSequence = checkBuff[1].EventType == 0x0001 and (checkBuff[1].Event.KeyEvent.uChar.AsciiChar == 79 or checkBuff[1].Event.KeyEvent.uChar.AsciiChar == 91);
+
+                if (isLeadingEscape and isEscapeSequence) {
+                    // Remove leading escape sequence start
+                    if (os.ReadConsoleInput(os.GetStdHandle(os.STDIN), &checkBuff, 2, &num_read) == 0) {
+                        return error.ReadConsoleInputFailure;
+                    }
+
+                    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+                    defer arena.deinit();
+                    const allocator = arena.allocator();
+
+                    var collected = std.ArrayList(u8).init(allocator);
+                    try collected.append(checkBuff[1].Event.KeyEvent.uChar.AsciiChar);
+
+                    if (os.GetNumberOfConsoleInputEvents(os.GetStdHandle(os.STDIN), &num_read) == 0) {
+                        return error.ReadConsoleInputFailure;
+                    }
+
+                    var buffer: [1]os.INPUT_RECORD = [_]os.INPUT_RECORD{undefined};
+                    while (true) {
+                        if (os.ReadConsoleInput(os.GetStdHandle(os.STDIN), &buffer, 1, &num_read) == 0) {
+                            return error.ReadConsoleInputFailure;
+                        }
+
+                        if (num_read != 0) {
+                            if (buffer[0].EventType == 0x0001) {
+                                // TODO: Better handling of u8 vs u16
+                                const char = buffer[0].Event.KeyEvent.uChar.AsciiChar;
+                                try collected.append(buffer[0].Event.KeyEvent.uChar.AsciiChar);
+                                // Characters 0x40..0x7E indicate that the escape sequence is complete
+                                if (char >= 0x40 and char <= 0x7E) {
+                                    break;
+                                }
+                            } else {
+                                // Not a full escape sequence so throw away collected and report other event instead
+                                return Event.from(buffer[0]);
+                            }
+                        }
+                    }
+
+                    // TODO: Translate collected into parsed escape sequence
+                    return try parseEscapeSequence(try collected.toOwnedSlice());
+                }
+            }
+
+            var buff: [1]os.INPUT_RECORD = [_]os.INPUT_RECORD{
+                os.INPUT_RECORD{
+                    .EventType = 0x0010,
+                    .Event = .{
+                        .FocusEvent = .{
+                            .bSetFocus = 0,
+                        },
+                    },
+                },
+            };
+            if (os.ReadConsoleInput(os.GetStdHandle(os.STDIN), &buff, 1, &num_read) == 0) {
+                return error.ReadConsoleInputFailure;
+            }
+            if (num_read > 0) {
+                return Event.from(buff[0]);
+            }
+            return null;
+        },
+        .linux => {
+            return Event.other;
+        },
+        else => @compileError("Unsupported OS"),
+    }
 }
 
 /// Read a line from the terminal
