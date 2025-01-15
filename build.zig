@@ -1,57 +1,48 @@
-// Reference: https://ziggit.dev/t/build-system-tricks/3531
-
 const std = @import("std");
-
-const OS = @import("builtin").target.os.tag;
-const EXAMPLES_DIR = "examples/";
-const EXAMPLES = &.{
-    "print",
-    "query",
-    "input",
-    "actions",
-    "styling",
-    "spinners",
-};
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
-    // ========================================================================
-    //                                  setup
-    // ========================================================================
-
-    // Options
-
-    const example_name = b.option([]const u8, "example", "Run a specific example after building");
-    const list_examples = b.option(bool, "list-examples", "List all available examples") orelse false;
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Versions and Paths
+    const module = b.addModule("termz", .{ .root_source_file = b.path("src/root.zig") });
+    const exe = b.addExecutable(.{
+        .name = "termz",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("termz", module);
 
-    const version = std.SemanticVersion{ .major = 0, .minor = 0, .patch = 0 };
-    const lib_path = b.path("src/root.zig");
+    // This declares intent for the executable to be installed into the
+    // standard location when the user invokes the "install" step (the default
+    // step when running `zig build`).
+    b.installArtifact(exe);
 
-    // ========================================================================
-    //                              lib module
-    // ========================================================================
+    // This *creates* a Run step in the build graph, to be executed when another
+    // step is evaluated that depends on it. The next line below will establish
+    // such a dependency.
+    const run_cmd = b.addRunArtifact(exe);
 
-    const lib_mod = b.addModule("term", .{ .root_source_file = lib_path });
+    // By making the run step depend on the install step, it will be run from the
+    // installation directory rather than directly from within the cache directory.
+    // This is not necessary, however, if the application depends on other installed
+    // files, this ensures they will be present and in the expected location.
+    run_cmd.step.dependOn(b.getInstallStep());
 
-    switch (OS) {
-        .windows => {
-            const zigwin32_dep = b.dependency("zigwin32", .{});
-            const zigwin32_mod = zigwin32_dep.module("zigwin32");
-
-            lib_mod.addImport("zigwin32", zigwin32_mod);
-        },
-        else => {},
+    // This allows the user to pass arguments to the application in the build
+    // command itself, like this: `zig build run -- arg1 arg2 etc`
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
     }
 
-    // ========================================================================
-    //                                  Tests
-    // ========================================================================
+    // This creates a build step. It will be visible in the `zig build --help` menu,
+    // and can be selected like this: `zig build run`
+    // This will evaluate the `run` step rather than the default, which is "install".
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
@@ -61,65 +52,24 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    lib_unit_tests.root_module.addImport("termz", module);
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+
+    const exe_unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe_unit_tests.root_module.addImport("termz", module);
+
+    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
-
-    // ========================================================================
-    //                                    docs
-    // ========================================================================
-
-    // const docs_step = b.step("docs", "Generate documentation");
-    //
-    // const docs_install = b.addInstallDirectory(.{
-    //     .install_dir = .prefix,
-    //     .install_subdir = "docs",
-    //     .source_dir = lib.getEmittedDocs(),
-    // });
-    // docs_step.dependOn(&docs_install.step);
-    // b.default_step.dependOn(&docs_step.step);
-
-    // ========================================================================
-    //                                 examples
-    // ========================================================================
-
-    if (list_examples) {
-        inline for (EXAMPLES, 1..) |NAME, i| {
-            std.debug.print("{d}. {s}\n", .{ i, NAME });
-        }
-        return;
-    }
-
-    // Allow the user to define a specificly defined example to run
-    if (example_name) |name| {
-        inline for (EXAMPLES) |NAME| {
-            if (std.mem.eql(u8, NAME, name)) {
-                const example = b.addExecutable(.{
-                    .name = NAME,
-                    .target = target,
-                    .version = version,
-                    .optimize = optimize,
-                    .root_source_file = b.path(EXAMPLES_DIR ++ NAME ++ "/main.zig"),
-                });
-
-                example.root_module.addImport("term", lib_mod);
-                const example_run = b.addRunArtifact(example);
-                b.installArtifact(example);
-
-                // This allows the user to pass arguments to the application in the build
-                // command itself, like this: `zig build examples -- arg1 arg2 etc`
-                if (b.args) |args| {
-                    example_run.addArgs(args);
-                }
-
-                b.default_step.dependOn(&example_run.step);
-
-                break;
-            }
-        }
-    }
+    test_step.dependOn(&run_exe_unit_tests.step);
 }

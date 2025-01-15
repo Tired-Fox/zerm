@@ -1,34 +1,41 @@
 const std = @import("std");
 
-pub const Terminal = @import("terminal.zig");
-pub const Action = @import("ansi.zig").Action;
-pub const Cursor = @import("ansi.zig").Cursor;
-pub const Screen = @import("ansi.zig").Screen;
-pub const Line = @import("ansi.zig").Line;
-pub const Character = @import("ansi.zig").Character;
-pub const Style = @import("ansi.zig").Style;
-pub const Color = @import("ansi.zig").Color;
-pub const XTerm = @import("ansi.zig").XTerm;
+pub const style = @import("style.zig");
+pub const action = @import("action.zig");
+pub const event = @import("event.zig");
 
-pub const Key = @import("events.zig").Key;
-
-pub const Rune = struct {
-    value: u21,
-
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        var buff: [4]u8 = [_]u8{0} ** 4;
-        const length = try std.unicode.utf8Encode(value.value, &buff);
-        try writer.print("{s}", .{buff[0..length]});
-    }
+pub const Source = enum {
+    Stdout,
+    Stderr,
 };
 
-pub fn Pair(comptime _type1: type, comptime _type2: type) type {
-    return std.meta.Tuple(&.{ _type1, _type2 });
+pub fn execute(source: Source, ops: anytype) !void {
+    const output = switch (source) {
+        .Stdout => std.io.getStdOut().writer(),
+        .Stderr => std.io.getStdErr().writer(),
+    };
+
+    inline for (ops) |op| {
+        const t = @TypeOf(op);
+        switch (t) {
+            u8 => try output.print("{c}", .{op}),
+            u16 => {
+                var buff: [2]u8 = undefined;
+                const length = try std.unicode.utf16LeToUtf8(&buff, [1]u16{op});
+                try output.print("{s}", .{buff[0..length]});
+            },
+            u21 => {
+                var buff: [4]u8 = undefined;
+                const length = try std.unicode.utf8Encode(op, &buff);
+                try output.print("{s}", .{buff[0..length]});
+            },
+            else => {
+                try output.print("{s}", .{ op });
+            }
+        }
+    }
 }
 
-pub const Size = Pair(u16, u16);
-pub const Point = Pair(u16, u16);
-
-pub fn rune(c: u21) Rune {
-    return .{ .value = c };
+test {
+    std.testing.refAllDecls(@This());
 }
