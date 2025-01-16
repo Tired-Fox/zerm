@@ -123,12 +123,12 @@ pub const Modifiers = packed struct(u6) {
     }
 };
 
-const utils = switch (@import("builtin").target.os.tag) {
+const Utils = switch (@import("builtin").target.os.tag) {
     .windows => struct {
         extern "kernel32" fn GetNumberOfConsoleInputEvents(
             hConsoleInput: std.os.windows.HANDLE,
             lpcNumberOfEvents: *std.os.windows.DWORD
-        ) callconv(.winapi) std.os.windows.BOOL;
+        ) callconv(.Win64) std.os.windows.BOOL;
     },
     else => struct {}
 };
@@ -140,7 +140,8 @@ pub fn pollEvent() bool {
     switch (@import("builtin").target.os.tag) {
         .windows => {
             var count: u32 = 0; 
-            const result = utils.GetNumberOfConsoleInputEvents(std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE), &count);
+            const stdin = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch { return false; };
+            const result = Utils.GetNumberOfConsoleInputEvents(stdin, &count);
             return result != 0 and count > 0;
         },
         .linux, .macos => {
@@ -171,8 +172,74 @@ pub fn readLine(allocator: std.mem.Allocator, max_size: usize) !?[]u8 {
     return readUntil(allocator, '\n', max_size);
 }
 
-// TODO:
-// - implement parse event method
+pub const KeyEvent = struct {
+    key: Key,
+    modifiers: Modifiers = .{}
+};
+
+pub const MouseEvent = struct {
+    // TODO:
+};
+
+pub const Event = union(enum) {
+    key_event: KeyEvent,
+    mouse_event: MouseEvent,
+};
+
+pub fn parseEvent() !?Event {
+    const stdin = std.io.getStdIn();
+    const reader = stdin.reader();
+
+    var buff: [1]u8 = undefined;
+    const read = try reader.read(&buff);
+    if (read == 0) {
+        return null;
+    }
+
+    switch (buff[0]) {
+        0x1B => {
+            // TODO: Parse Event
+            return Event { .key_event = .{ .key = Key.Esc } };
+        },
+        0x0D, 0x0A => return Event { .key_event = .{ .key = Key.Enter } },
+        0x08 => return Event { .key_event = .{ .key = Key.Backspace } },
+        0x09 => return Event { .key_event = .{ .key = Key.Tab } },
+        0x7F => return Event { .key_event = .{ .key = Key.Delete } },
+        0x00 => return Event { .key_event = .{ .key = Key.char('@'), .modifiers = .{ .ctrl = true } } },
+        0x01 => return Event { .key_event = .{ .key = Key.char('a'), .modifiers = .{ .ctrl = true } } },
+        0x02 => return Event { .key_event = .{ .key = Key.char('b'), .modifiers = .{ .ctrl = true } } },
+        0x03 => return Event { .key_event = .{ .key = Key.char('c'), .modifiers = .{ .ctrl = true } } },
+        0x04 => return Event { .key_event = .{ .key = Key.char('d'), .modifiers = .{ .ctrl = true } } },
+        0x05 => return Event { .key_event = .{ .key = Key.char('e'), .modifiers = .{ .ctrl = true } } },
+        0x06 => return Event { .key_event = .{ .key = Key.char('f'), .modifiers = .{ .ctrl = true } } },
+        0x07 => return Event { .key_event = .{ .key = Key.char('g'), .modifiers = .{ .ctrl = true } } },
+        // 0x08 => return Event { .key_event = .{ .key = Key.char('h'), .modifiers = .{ .ctrl = true } } },
+        // 0x09 => return Event { .key_event = .{ .key = Key.char('i'), .modifiers = .{ .ctrl = true } } },
+        // 0x0A => return Event { .key_event = .{ .key = Key.char('j'), .modifiers = .{ .ctrl = true } } },
+        0x0B => return Event { .key_event = .{ .key = Key.char('k'), .modifiers = .{ .ctrl = true } } },
+        0x0C => return Event { .key_event = .{ .key = Key.char('l'), .modifiers = .{ .ctrl = true } } },
+        // 0x0D => return Event { .key_event = .{ .key = Key.char('m'), .modifiers = .{ .ctrl = true } } },
+        0x0E => return Event { .key_event = .{ .key = Key.char('n'), .modifiers = .{ .ctrl = true } } },
+        0x0F => return Event { .key_event = .{ .key = Key.char('o'), .modifiers = .{ .ctrl = true } } },
+        0x10 => return Event { .key_event = .{ .key = Key.char('p'), .modifiers = .{ .ctrl = true } } },
+        0x11 => return Event { .key_event = .{ .key = Key.char('q'), .modifiers = .{ .ctrl = true } } },
+        0x12 => return Event { .key_event = .{ .key = Key.char('r'), .modifiers = .{ .ctrl = true } } },
+        0x13 => return Event { .key_event = .{ .key = Key.char('s'), .modifiers = .{ .ctrl = true } } },
+        0x14 => return Event { .key_event = .{ .key = Key.char('t'), .modifiers = .{ .ctrl = true } } },
+        0x15 => return Event { .key_event = .{ .key = Key.char('u'), .modifiers = .{ .ctrl = true } } },
+        0x16 => return Event { .key_event = .{ .key = Key.char('v'), .modifiers = .{ .ctrl = true } } },
+        0x17 => return Event { .key_event = .{ .key = Key.char('w'), .modifiers = .{ .ctrl = true } } },
+        0x18 => return Event { .key_event = .{ .key = Key.char('x'), .modifiers = .{ .ctrl = true } } },
+        0x19 => return Event { .key_event = .{ .key = Key.char('y'), .modifiers = .{ .ctrl = true } } },
+        0x1A => return Event { .key_event = .{ .key = Key.char('z'), .modifiers = .{ .ctrl = true } } },
+        // 0x1B => return Event { .key_event = .{ .key = Key.char('['), .modifiers = .{ .ctrl = true } } },
+        0x1C => return Event { .key_event = .{ .key = Key.char('\\'), .modifiers =.{ .ctrl = true } } },
+        0x1D => return Event { .key_event = .{ .key = Key.char(']'), .modifiers = .{ .ctrl = true } } },
+        0x1E => return Event { .key_event = .{ .key = Key.char('^'), .modifiers = .{ .ctrl = true } } },
+        0x1F => return Event { .key_event = .{ .key = Key.char('_'), .modifiers = .{ .ctrl = true } } },
+        else => return Event { .key_event = .{ .key = Key.char(buff[0]) } },
+    }
+}
 
 test "event::pollEvent" {
     try std.testing.expect(!pollEvent());

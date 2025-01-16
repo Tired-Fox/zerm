@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub const style = @import("style.zig");
 pub const action = @import("action.zig");
-pub const event = @import("event.zig");
+pub const events = @import("events.zig");
 
 pub const Source = enum {
     Stdout,
@@ -35,6 +35,16 @@ pub fn execute(source: Source, ops: anytype) !void {
         }
     }
 }
+
+const utils = switch (@import("builtin").target.os.tag) {
+    .windows => struct {
+        extern "kernel32" fn GetNumberOfConsoleInputEvents(
+            hConsoleInput: std.os.windows.HANDLE,
+            lpcNumberOfEvents: *std.os.windows.DWORD
+        ) callconv(.winapi) std.os.windows.BOOL;
+    },
+    else => struct {}
+};
 
 test {
     std.testing.refAllDecls(@This());
