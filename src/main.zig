@@ -4,6 +4,7 @@ const termz = @import("termz");
 const Screen = termz.action.Screen;
 const Cursor = termz.action.Cursor;
 const Line = termz.action.Line;
+const Capture = termz.action.Capture;
 const Style = termz.style.Style;
 const Color = termz.style.Color;
 const Reset = termz.style.Reset;
@@ -44,24 +45,29 @@ pub fn main() !void {
         Cursor { .shape = .block }
     });
 
-    // PERF: Broken on linux
-    try Screen.enable_raw_mode(.Stdout);
-    errdefer _ = Screen.disable_raw_mode(.Stdout) catch { std.log.err("error disabling raw mode", .{}); };
-
     try execute(.Stdout, .{
-        Screen.Save,
         Screen.EnterAlternateBuffer,
-        Cursor { .col = 0, .row = 0 },
+        Capture.EnableMouse,
+        Capture.EnableFocus,
+        Capture.EnableBracketedPaste,
+        Cursor { .col = 5, .row = 5, .up = 2, .left = 2 },
         "Press 'ctrl+c' to quit:\r\n"
     });
+
+    // PERF: Broken on linux
+    try Screen.enableRawMode();
+    errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
 
     while (true) {
         if (events.pollEvent()) {
             if (try events.parseEvent()) |event| {
+                std.log.debug("{any}", .{ event });
                 switch (event) {
                     .key_event => |ke| {
                         if (ke.key.eql(Key.char('c')) and ke.modifiers.ctrl) {
-                            return;
+                            break;
+                        } else if (ke.key.eql(Key.char('q'))) {
+                            break;
                         }
                     },
                     else => {}
@@ -70,11 +76,12 @@ pub fn main() !void {
         }
     }
 
-    try Screen.disable_raw_mode(.Stdout);
-
+    try Screen.disableRawMode();
     try execute(.Stdout, .{
-        // PERF: Experiment how this should behave, doesn't seem to work as expected
+        Capture.DisableMouse,
+        Capture.DisableFocus,
+        Capture.DisableBracketedPaste,
         Screen.LeaveAlternateBuffer,
-        Screen.Restore,
     });
+
 }

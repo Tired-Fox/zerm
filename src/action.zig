@@ -1,5 +1,4 @@
 const std = @import("std");
-const Source = @import("root.zig").Source;
 
 const Utils = switch (@import("builtin").target.os.tag) {
     .windows => struct {
@@ -24,20 +23,32 @@ const Utils = switch (@import("builtin").target.os.tag) {
             ENABLE_EXTENDED_FLAGS: u1 = 0,
             ENABLE_AUTO_POSITION: u1 = 0,
             ENABLE_VIRTUAL_TERMINAL_INPUT: u1 = 0,
-            _m: u22 = 0
+            _m: u22 = 0,
+
+            pub fn Not(self: @This()) @This() {
+                return @bitCast(~@as(u32, @bitCast(self)));
+            }
+
+            pub fn And(self: @This(), other: @This()) @This() {
+                return @bitCast(@as(u32, @bitCast(self)) & @as(u32, @bitCast(other)));
+            }
+
+            pub fn Or(self: @This(), other: @This()) @This() {
+                return @bitCast(@as(u32, @bitCast(self)) | @as(u32, @bitCast(other)));
+            }
         };
 
-        pub const ENABLE_STDIN_RAW_MODE: CONSOLE_MODE = .{
-            .ENABLE_MOUSE_INPUT = 1,
-            .ENABLE_VIRTUAL_TERMINAL_INPUT = 1,
-            .ENABLE_EXTENDED_FLAGS = 1,
-        };
 
-        pub const ENABLE_STDOUT_RAW_MODE: CONSOLE_MODE = .{
-            // Same as ENABLE_PROCESSED_OUTPUT
-            .ENABLE_PROCESSED_INPUT = 1,
-            // Same as ENABLE_VIRTUAL_TERMINAL_PROCESSING bitwise
+        pub const DISABLE_STDIN_MODE: CONSOLE_MODE = .{
             .ENABLE_ECHO_INPUT = 1,
+            .ENABLE_LINE_INPUT = 1,
+            .ENABLE_PROCESSED_INPUT = 1,
+        };
+
+        pub const ENABLE_MOUSE_MODE: CONSOLE_MODE = .{
+            .ENABLE_MOUSE_INPUT = 1,
+            .ENABLE_WINDOW_INPUT = 1,
+            .ENABLE_EXTENDED_FLAGS = 1,
         };
     },
     else => struct {
@@ -107,8 +118,7 @@ const Utils = switch (@import("builtin").target.os.tag) {
 const Mode = switch(@import("builtin").target.os.tag) {
     .windows => struct {
         mutex: std.Thread.Mutex = std.Thread.Mutex {},
-        original_stdin: ?Utils.CONSOLE_MODE = null,
-        original_stdout: ?Utils.CONSOLE_MODE = null
+        original: ?Utils.CONSOLE_MODE = null,
     },
     else => struct {
         mutex: std.Thread.Mutex = std.Thread.Mutex {},
@@ -117,18 +127,6 @@ const Mode = switch(@import("builtin").target.os.tag) {
 };
 
 var MODE: Mode = .{};
-
-pub const Canvas = enum {
-
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{s}", .{switch (value) {
-            .EnterAlternateBuffer => "\x1b[?1049h",
-            .ExitAlternateBuffer => "\x1b[?1049l",
-            .SaveCursor => "\x1b[s",
-            .RestoreCursor => "\x1b[u",
-        }});
-    }
-};
 
 pub const Cursor = struct {
     up: ?u16 = null,
@@ -150,28 +148,41 @@ pub const Cursor = struct {
     } = null,
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (value.up) |u| {
-            try writer.print("\x1b[{d}A", .{u});
-        }
-
-        if (value.down) |d| {
-            try writer.print("\x1b[{d}B", .{d});
-        }
-
-        if (value.left) |b| {
-            try writer.print("\x1b[{d}D", .{b});
-        }
-
-        if (value.right) |f| {
-            try writer.print("\x1b[{d}C", .{f});
-        }
-
         if (value.col != null and value.row != null) {
-            try writer.print("\x1b[{d};{d}H", .{ value.row.?, value.col.? });
+            const left = value.left orelse 0;
+            const right = value.right orelse 0;
+            const down = value.down orelse 0;
+            const up = value.up orelse 0;
+
+            var col = value.col.? + right;
+            if (left >= col) col = 0 else col = col - left;
+
+            var row = value.row.? + down;
+            if (up >= row) row = 0 else row -= up;
+            try writer.print("\x1b[{d};{d}H", .{ row, col });
         } else if (value.col) |_x| {
-            try writer.print("\x1b[{d}G", .{_x});
+            const left = value.left orelse 0;
+            const right = value.right orelse 0;
+            var col = _x + right;
+            if (left >= col) col = 0 else col = col - left;
+            try writer.print("\x1b[{d}G", .{ col });
+
+            if (value.up) |u| try writer.print("\x1b[{d}A", .{u});
+            if (value.down) |d| try writer.print("\x1b[{d}B", .{d});
         } else if (value.row) |_y| {
-            try writer.print("\x1b[{d}d", .{_y});
+            const down = value.down orelse 0;
+            const up = value.up orelse 0;
+            var row = _y + down;
+            if (up >= row) row = 0 else row -= up;
+            try writer.print("\x1b[{d}d", .{row});
+
+            if (value.left) |b| try writer.print("\x1b[{d}D", .{b});
+            if (value.right) |f| try writer.print("\x1b[{d}C", .{f});
+        } else {
+            if (value.up) |u| try writer.print("\x1b[{d}A", .{u});
+            if (value.down) |d| try writer.print("\x1b[{d}B", .{d});
+            if (value.left) |b| try writer.print("\x1b[{d}D", .{b});
+            if (value.right) |f| try writer.print("\x1b[{d}C", .{f});
         }
 
         if (value.blink) |b| {
@@ -229,50 +240,27 @@ pub const Screen = union(enum) {
     save_cursor: void,
     restore_cursor: void,
 
-    pub fn enable_raw_mode(source: Source) !void {
-        MODE.mutex.lock();
-        defer MODE.mutex.unlock();
-
+    /// Enable terminal raw mode
+    ///
+    /// This mostly means that all inputs including `ctrl+c` will be passed to the application
+    pub fn enableRawMode() !void {
         switch(@import("builtin").target.os.tag) {
             .windows => {
                 const stdin = try std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
-                const stdout = try std.os.windows.GetStdHandle(if (source == .Stdout) std.os.windows.STD_OUTPUT_HANDLE else std.os.windows.STD_ERROR_HANDLE);
-
-                if (MODE.original_stdin != null or MODE.original_stdout != null) {
-                    return;
-                }
 
                 var mode = Utils.CONSOLE_MODE{};
-
-                if (Utils.GetConsoleMode(stdin, &mode) != 0) {
-                     MODE.original_stdin = mode;
-                } else {
+                if (Utils.GetConsoleMode(stdin, &mode) == 0) {
                     return error.UnkownStdinMode;
                 }
-                errdefer if (MODE.original_stdin) |original| {
-                    _ = Utils.SetConsoleMode(stdin, original);
-                    MODE.original_stdin = null;
-                };
 
-                if (Utils.GetConsoleMode(stdout, &mode) != 0) {
-                    MODE.original_stdout = mode;
-                } else {
-                    return error.UnkownStdoutMode;
-                }
-                errdefer if (MODE.original_stdout) |original| {
-                    _ = Utils.SetConsoleMode(stdout, original);
-                    MODE.original_stdout = null;
-                };
-
-                if (Utils.SetConsoleMode(stdin, Utils.ENABLE_STDIN_RAW_MODE) == 0) {
+                if (Utils.SetConsoleMode(stdin, mode.And(Utils.DISABLE_STDIN_MODE.Not())) == 0) {
                     return error.InvalidStdinEntry;
-                }
-
-                if (Utils.SetConsoleMode(stdout, Utils.ENABLE_STDOUT_RAW_MODE) == 0) {
-                    return error.InvalidStdoutEntry;
                 }
             },
             else => {
+                MODE.mutex.lock();
+                defer MODE.mutex.unlock();
+
                 if (MODE.original != null) {
                     return;
                 }
@@ -288,26 +276,24 @@ pub const Screen = union(enum) {
         }
     }
 
-    pub fn disable_raw_mode(source: Source) !void {
-        MODE.mutex.lock();
-        defer MODE.mutex.unlock();
-
+    pub fn disableRawMode() !void {
         switch(@import("builtin").target.os.tag) {
             .windows => {
                 const stdin = try std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
-                const stdout = try std.os.windows.GetStdHandle(if (source == .Stdout) std.os.windows.STD_OUTPUT_HANDLE else std.os.windows.STD_ERROR_HANDLE);
 
-                if (MODE.original_stdin) |original| {
-                    _ = Utils.SetConsoleMode(stdin, original);
-                    MODE.original_stdin = null;
+                var mode = Utils.CONSOLE_MODE{};
+                if (Utils.GetConsoleMode(stdin, &mode) == 0) {
+                    return error.UnkownStdinMode;
                 }
 
-                if (MODE.original_stdout) |original| {
-                    _ = Utils.SetConsoleMode(stdout, original);
-                    MODE.original_stdout = null;
+                if (Utils.SetConsoleMode(stdin, mode.Or(Utils.DISABLE_STDIN_MODE)) == 0) {
+                    return error.InvalidStdinEntry;
                 }
             },
             else => {
+                MODE.mutex.lock();
+                defer MODE.mutex.unlock();
+
                 if (MODE.original) |original| {
                     try Utils.set_term_state(&original);
                     MODE.original = null;
@@ -406,7 +392,90 @@ pub const Character = union(enum) {
     }
 };
 
-test "action::Canvas::format" {
+pub const Capture = enum {
+    EnableMouse,
+    DisableMouse,
+    EnableFocus,
+    DisableFocus,
+    EnableBracketedPaste,
+    DisableBracketedPaste,
+
+    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        switch(value) {
+            .EnableMouse => {
+                switch(@import("builtin").target.os.tag) {
+                    .windows => {
+                        MODE.mutex.lock();
+                        defer MODE.mutex.unlock();
+                        const stdin = try std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
+
+                        var mode = Utils.CONSOLE_MODE{};
+                        if (Utils.GetConsoleMode(stdin, &mode) == 0) {
+                            return error.UnkownStdinMode;
+                        }
+                        MODE.original = mode;
+
+                        if (Utils.SetConsoleMode(stdin, mode.Or(Utils.ENABLE_MOUSE_MODE)) == 0) {
+                            return error.InvalidStdinEntry;
+                        }
+                    },
+                    // ?1000h: Normal tracking: Send mouse X & Y on button press and release
+                    // ?1002h: Button-event tracking: Report button motion events (dragging)
+                    // ?1003h: Any-event tracking: Report all motion events
+                    // ?1015h: RXVT mouse mode: Allows mouse coordinates of >223
+                    // ?1006h: SGR mouse mode: Allows mouse coordinates of >223, preferred over RXVT mode
+                    else => try writer.print("\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1015h\x1b[?1006h", .{}),
+                }
+            },
+            .DisableMouse => {
+                switch(@import("builtin").target.os.tag) {
+                    .windows => {
+                        MODE.mutex.lock();
+                        defer MODE.mutex.unlock();
+                        if (MODE.original) |original| {
+                            const stdin = try std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
+                            if (Utils.SetConsoleMode(stdin, original) == 0) {
+                                return error.InvalidStdinEntry;
+                            }
+                        }
+                    },
+                    else => try writer.print("\x1b[?1006l\x1b[?1015l\x1b[?1003h\x1b[?1002l\x1b[?1000l", .{}),
+                }
+            },
+            .EnableFocus => try writer.print("\x1b[?1004h", .{}),
+            .DisableFocus => try writer.print("\x1b[?1004l", .{}),
+            .EnableBracketedPaste => try writer.print("\x1b[?2004h", .{}),
+            .DisableBracketedPaste => try writer.print("\x1b[?2004h", .{}),
+        }
+    }
+};
+
+test "action::Capture::format" {
+    if (@import("builtin").target.os.tag != .windows) {
+        var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableMouse });
+        try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1015h\x1b[?1006h"));
+        std.testing.allocator.free(format);
+
+        format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.DisableMouse });
+        try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1006l\x1b[?1015l\x1b[?1003h\x1b[?1002l\x1b[?1000l"));
+        std.testing.allocator.free(format);
+    }
+
+    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableFocus });
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1004h"));
+    std.testing.allocator.free(format);
+
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.DisableFocus });
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1004l"));
+    std.testing.allocator.free(format);
+
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableBracketedPaste });
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[?2004h"));
+    std.testing.allocator.free(format);
+
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.DisableBracketedPaste });
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[?2004l"));
+    std.testing.allocator.free(format);
 }
 
 test "action::Cursor::format" {
