@@ -45,6 +45,10 @@ pub fn main() !void {
         Cursor { .shape = .block }
     });
 
+    // PERF: Broken on linux
+    try Screen.enableRawMode();
+    errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
+
     try execute(.Stdout, .{
         Screen.EnterAlternateBuffer,
         Capture.EnableMouse,
@@ -53,10 +57,6 @@ pub fn main() !void {
         Cursor { .col = 5, .row = 5, .up = 2, .left = 2 },
         "Press 'ctrl+c' to quit:\r\n"
     });
-
-    // PERF: Broken on linux
-    try Screen.enableRawMode();
-    errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
 
     while (true) {
         if (events.pollEvent()) {
@@ -76,7 +76,6 @@ pub fn main() !void {
         }
     }
 
-    try Screen.disableRawMode();
     try execute(.Stdout, .{
         Capture.DisableMouse,
         Capture.DisableFocus,
@@ -84,4 +83,5 @@ pub fn main() !void {
         Screen.LeaveAlternateBuffer,
     });
 
+    try Screen.disableRawMode();
 }

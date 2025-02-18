@@ -39,13 +39,24 @@ const Utils = switch (@import("builtin").target.os.tag) {
         };
 
 
-        pub const DISABLE_STDIN_MODE: CONSOLE_MODE = .{
+        pub const STDIN_MASK: CONSOLE_MODE = .{
             .ENABLE_ECHO_INPUT = 1,
             .ENABLE_LINE_INPUT = 1,
             .ENABLE_PROCESSED_INPUT = 1,
+            .ENABLE_INSERT_MODE = 1,
+            .ENABLE_QUICK_EDIT_MODE = 1,
         };
 
-        pub const ENABLE_MOUSE_MODE: CONSOLE_MODE = .{
+        pub const STDIN_MODE: CONSOLE_MODE = .{
+            .ENABLE_VIRTUAL_TERMINAL_INPUT = 1
+        };
+
+        pub const STDOUT_MODE: CONSOLE_MODE = .{
+            .ENABLE_ECHO_INPUT = 1,
+            .ENABLE_PROCESSED_INPUT = 1,
+        };
+
+        pub const MOUSE_MODE: CONSOLE_MODE = .{
             .ENABLE_MOUSE_INPUT = 1,
             .ENABLE_WINDOW_INPUT = 1,
             .ENABLE_EXTENDED_FLAGS = 1,
@@ -253,7 +264,10 @@ pub const Screen = union(enum) {
                     return error.UnkownStdinMode;
                 }
 
-                if (Utils.SetConsoleMode(stdin, mode.And(Utils.DISABLE_STDIN_MODE.Not())) == 0) {
+                mode = mode.And(Utils.STDIN_MASK.Not())
+                    .Or(Utils.STDIN_MODE);
+
+                if (Utils.SetConsoleMode(stdin, mode) == 0) {
                     return error.InvalidStdinEntry;
                 }
             },
@@ -286,7 +300,9 @@ pub const Screen = union(enum) {
                     return error.UnkownStdinMode;
                 }
 
-                if (Utils.SetConsoleMode(stdin, mode.Or(Utils.DISABLE_STDIN_MODE)) == 0) {
+                mode  = mode.And(Utils.STDIN_MODE.Not())
+                    .Or(Utils.STDIN_MASK);
+                if (Utils.SetConsoleMode(stdin, mode) == 0) {
                     return error.InvalidStdinEntry;
                 }
             },
@@ -415,7 +431,7 @@ pub const Capture = enum {
                         }
                         MODE.original = mode;
 
-                        if (Utils.SetConsoleMode(stdin, mode.Or(Utils.ENABLE_MOUSE_MODE)) == 0) {
+                        if (Utils.SetConsoleMode(stdin, mode.Or(Utils.MOUSE_MODE)) == 0) {
                             return error.InvalidStdinEntry;
                         }
                     },
