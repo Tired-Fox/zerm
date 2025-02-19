@@ -31,7 +31,19 @@ pub fn main() !void {
         Cursor { .shape = .block_blink }
     });
 
-    std.time.sleep(3 * std.time.ns_per_s);
+    const frames = [_]u21{ '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' };
+    for (0..3) |_| {
+        for (0..frames.len) |i| {
+            try execute(.Stdout, .{
+                "\r",
+                Style { .fg = Color.Yellow },
+                frames[i],
+                Reset.fg(),
+                " Loading..."
+            });
+            std.time.sleep(80 * std.time.ns_per_ms);
+        }
+    }
 
     try execute(.Stdout, .{
         Screen.title("Hello Everyone"),

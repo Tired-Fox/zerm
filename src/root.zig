@@ -15,25 +15,30 @@ pub fn execute(source: Source, ops: anytype) !void {
         .Stderr => std.io.getStdErr().writer(),
     };
 
+    var buffer = std.io.bufferedWriter(output);
+    var writer = buffer.writer();
+
     inline for (ops) |op| {
         const t = @TypeOf(op);
         switch (t) {
-            u8 => try output.print("{c}", .{op}),
+            u8 => try writer.print("{c}", .{op}),
             u16 => {
                 var buff: [2]u8 = undefined;
                 const length = try std.unicode.utf16LeToUtf8(&buff, [1]u16{op});
-                try output.print("{s}", .{buff[0..length]});
+                try writer.print("{s}", .{buff[0..length]});
             },
             u21 => {
                 var buff: [4]u8 = undefined;
                 const length = try std.unicode.utf8Encode(op, &buff);
-                try output.print("{s}", .{buff[0..length]});
+                try writer.print("{s}", .{buff[0..length]});
             },
             else => {
-                try output.print("{s}", .{ op });
+                try writer.print("{s}", .{ op });
             }
         }
     }
+
+    try buffer.flush();
 }
 
 const utils = switch (@import("builtin").target.os.tag) {

@@ -171,7 +171,7 @@ pub const KeyEvent = struct {
     modifiers: Modifiers = .{}
 };
 
-pub const MouseButton = enum(u2) { Left = 0, Middle = 1, Right = 2 };
+pub const MouseButton = enum { Left, Middle, Right, ScrollRight, ScrollLeft, Other };
 pub const ButtonState = enum(u2) { Pressed, Released };
 pub const ScrollDirection = enum(u2) { Up, Down };
 
@@ -272,9 +272,23 @@ pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
                                 35 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .move = {} } } },
                                 64 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Down } } },
                                 63 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Up } } },
-                                else => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{
-                                    .button = .{ .type = @enumFromInt(variant), .state = if (sequence[sequence.len - 1] == 'm') .Released else .Pressed }
-                                } } },
+                                else => return Event { .mouse_event = .{
+                                    .col = x,
+                                    .row = y,
+                                    .type = .{
+                                        .button = .{
+                                            .type = switch (variant) {
+                                                0 => .Left,
+                                                1 => .Middle,
+                                                2 => .Right,
+                                                66 => .ScrollLeft,
+                                                67 => .ScrollRight,
+                                                else => .Other
+                                            },
+                                            .state = if (sequence[sequence.len - 1] == 'm') .Released else .Pressed
+                                        }
+                                    }
+                                }},
                             }
                         } else if (sequence.len == 1) {
                             switch (sequence[0]) {
