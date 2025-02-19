@@ -22,7 +22,7 @@ pub fn main() !void {
         "Hello, ",
         Reset.fg(),
 
-        Screen.SaveCursor,
+        Cursor.Save,
 
         Style { .fg = Color.Magenta },
         "world!\n",
@@ -47,7 +47,7 @@ pub fn main() !void {
 
     try execute(.Stdout, .{
         Screen.title("Hello Everyone"),
-        Screen.RestoreCursor,
+        Cursor.Restore,
         Line.erase(.ToEnd),
 
         Style { .fg = Color.Yellow },

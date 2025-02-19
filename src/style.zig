@@ -1,5 +1,6 @@
 const std = @import("std");
 
+/// XTerm named colors
 pub const XTerm = enum(u8) {
     Black = 0,
     Maroon = 1,
@@ -196,6 +197,7 @@ pub const XTerm = enum(u8) {
     Grey93 = 255,
 };
 
+/// Ansi Color Representation
 pub const Color = union(enum) {
     pub const Black: @This() = .{ .black = {} };
     pub const Red: @This() = .{ .red = {} };
@@ -207,13 +209,21 @@ pub const Color = union(enum) {
     pub const White: @This() = .{ .white = {} };
     pub const Default: @This() = .{ .default = {} };
 
+    /// System `black`
     black: void,
+    /// System `red`
     red: void,
+    /// System `green`
     green: void,
+    /// System `yellow`
     yellow: void,
+    /// System `blue`
     blue: void,
+    /// System `magenta`
     magenta: void,
+    /// System `cyan`
     cyan: void,
+    /// System `white`
     white: void,
     default: void,
 
@@ -249,12 +259,15 @@ pub const Color = union(enum) {
     }
 };
 
+/// Styling for ansi text
 pub const Style = struct {
     bold: bool = false,
     underline: bool = false,
     italic: bool = false,
     blink: bool = false,
+    /// Strikethrough
     crossed: bool = false,
+    /// Swap foreground and background colors
     reverse: bool = false,
 
     fg: ?Color = null,
@@ -268,6 +281,7 @@ pub const Style = struct {
         return .{ .bold = true };
     }
 
+    /// Strikethrough
     pub fn crossed() @This() {
         return .{ .crossed = true };
     }
@@ -284,6 +298,7 @@ pub const Style = struct {
         return .{ .blink = true };
     }
 
+    /// Swap foreground and background colors
     pub fn reverse() @This() {
         return .{ .reverse = true };
     }
@@ -296,6 +311,7 @@ pub const Style = struct {
         return .{ .bg = color };
     }
 
+    /// Generate the representation that will reset the styling
     pub fn reset(self: @This()) Reset {
         return .{
             .bold = self.bold,
@@ -358,6 +374,7 @@ pub const Style = struct {
     }
 };
 
+/// Representation of sequences to reset ansi styling
 pub const Reset = struct {
     bold: bool = false,
     underline: bool = false,

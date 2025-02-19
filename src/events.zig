@@ -1,5 +1,6 @@
 const std = @import("std");
 
+/// Representation of keyboard input
 pub const Key = union(enum) {
     pub const Up: @This() = .{ .up = {} };
     pub const Down: @This() = .{ .down = {} };
@@ -103,6 +104,7 @@ pub const Key = union(enum) {
     }
 };
 
+/// Keyboard modifiers
 pub const Modifiers = packed struct(u3) {
     alt: bool = false,
     ctrl: bool = false,
@@ -138,16 +140,13 @@ pub fn pollEvent() bool {
             const result = Utils.GetNumberOfConsoleInputEvents(stdin, &count);
             return result != 0 and count > 0;
         },
-        .linux, .macos => {
+        else => {
             var buffer: [1]std.os.linux.pollfd = [_]std.os.linux.pollfd{std.os.linux.pollfd{
                 .fd = std.os.linux.STDIN_FILENO,
                 .events = std.os.linux.POLL.IN,
                 .revents = 0,
             }};
             return std.os.linux.poll(&buffer, 1, 1) > 0;
-        },
-        else => {
-            return false;
         },
     }
 }
@@ -166,11 +165,13 @@ pub fn readLine(allocator: std.mem.Allocator, max_size: usize) !?[]u8 {
     return readUntil(allocator, '\n', max_size);
 }
 
+/// Keyboard event
 pub const KeyEvent = struct {
     key: Key,
     modifiers: Modifiers = .{}
 };
 
+/// Supported mouse button events
 pub const MouseButton = enum {
     Left,
     Middle,
@@ -205,7 +206,9 @@ pub const MouseEvent = struct {
 pub const Event = union(enum) {
     key_event: KeyEvent,
     mouse_event: MouseEvent,
+    /// Requires `Capture.EnableFocus` to be executed
     focus_event: bool,
+    /// Requires `Capture.EnableBracketedPaste` to be executed
     paste_event: []const u8
 };
 

@@ -139,16 +139,36 @@ const Mode = switch(@import("builtin").target.os.tag) {
 
 var MODE: Mode = .{};
 
+/// Terminal cursor commands
+///
+/// When `col` is mixed with `left` and/or `right` the formatter will attempt to optimize the commands into one
+/// When `row` is mixed with `up` and/or `down` the formatter will attempt to optimize the commands into one
 pub const Cursor = struct {
+    /// Save the cursor position
+    save: bool = false,
+    /// Restore the previously saved cursor position
+    restore: bool = false,
+
+    /// Move the cursor up by N rows
     up: ?u16 = null,
+    /// Move the cursor down by N rows
     down: ?u16 = null,
+    /// Move the cursor left by N columns
     left: ?u16 = null,
+    /// Move the cursor right by N columns
     right: ?u16 = null,
+    /// Move to column X
     col: ?u16 = null,
+    /// Move to row Y
     row: ?u16 = null,
+    /// Change the cursor's visibility
     visibility: ?enum { visible, hidden } = null,
+    /// Start or stop the cursor blinking
     blink: ?bool = null,
-    shape: ?enum {
+    /// Change the shape of the cursor
+    shape: ?Shape = null,
+
+    const Shape = enum {
         block,
         block_blink,
         underline,
@@ -156,7 +176,26 @@ pub const Cursor = struct {
         bar,
         bar_blink,
         user,
-    } = null,
+    };
+
+    /// Save the cursor position
+    pub const Save: @This() = .{ .save = true };
+    /// Restore the previously saved cursor position
+    pub const Restore: @This() = .{ .restore = true };
+    /// Hide the cursor
+    pub const Hide: @This() = .{ .visibility = .hidden };
+    /// Show the hidden cursor
+    pub const Show: @This() = .{ .restore = .visible };
+
+    /// Start or stop cursor blinking
+    pub fn blink(s: bool) @This() {
+        return .{ .blink = s };
+    }
+
+    /// Change the shape of the cursor
+    pub fn shape(s: Shape) @This() {
+        return .{ .shape = s };
+    }
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         if (value.col != null and value.row != null) {
@@ -207,8 +246,8 @@ pub const Cursor = struct {
             }
         }
 
-        if (value.shape) |shape| {
-            switch (shape) {
+        if (value.shape) |s| {
+            switch (s) {
                 .user => try writer.print("\x1b[0 q", .{}),
                 .block_blink => try writer.print("\x1b[1 q", .{}),
                 .block => try writer.print("\x1b[2 q", .{}),
@@ -218,42 +257,58 @@ pub const Cursor = struct {
                 .bar => try writer.print("\x1b[6 q", .{}),
             }
         }
+
+        if (value.save) try writer.print("\x1b[s", .{});
+        if (value.restore) try writer.print("\x1b[u", .{});
     }
 };
 
+/// Defines how much of something to erase
 pub const Erase = enum(u2) {
     ToEnd = 0,
     FromBeginning = 1,
     All = 2,
 };
 
+/// Screen/Canvas commands
 pub const Screen = union(enum) {
+    /// Apply a soft reset to the setup of the screen
     pub const SoftReset: @This() = .{ .soft_reset = {} };
+    /// Save the current screen
     pub const Save: @This() = .{ .save = {} };
+    /// Restore the previously saved screen
     pub const Restore: @This() = .{ .restore = {} };
 
+    /// Enter an alternate buffer
     pub const EnterAlternateBuffer: @This() = .{ .enter_alternate_buffer = {} };
+    /// Leave the current alternate buffer, restoring the previous
+    /// buffers text.
     pub const LeaveAlternateBuffer: @This() = .{ .leave_alternate_buffer = {} };
-    pub const SaveCursor: @This() = .{ .save_cursor = {} };
-    pub const RestoreCursor: @This() = .{ .restore_cursor = {} };
 
-
+    /// Scroll the screen up
     scroll_up: u16,
+    /// Scroll the screen down
     scroll_down: u16,
+    /// Erase a part of the screen
     erase: Erase,
+    /// Change the terminal title
     title: []const u8,
+    /// Apply a soft reset to the setup of the screen
     soft_reset: void,
+    /// Save the current screen
     save: void,
+    /// Restore the previously saved screen
     restore: void,
 
+    /// Enter an alternate buffer
     enter_alternate_buffer: void,
+    /// Leave the current alternate buffer, restoring the previous
+    /// buffers text.
     leave_alternate_buffer: void,
-    save_cursor: void,
-    restore_cursor: void,
 
     /// Enable terminal raw mode
     ///
-    /// This mostly means that all inputs including `ctrl+c` will be passed to the application
+    /// This means that all inputs including `ctrl+c` will be passed to the application
     pub fn enableRawMode() !void {
         switch(@import("builtin").target.os.tag) {
             .windows => {
@@ -290,6 +345,7 @@ pub const Screen = union(enum) {
         }
     }
 
+    /// Enable terminal raw mode restoring it's default behavior
     pub fn disableRawMode() !void {
         switch(@import("builtin").target.os.tag) {
             .windows => {
@@ -318,19 +374,22 @@ pub const Screen = union(enum) {
         }
     }
 
-
+    /// Scroll the screen up
     pub fn scroll_up(u: u16) @This() {
         return .{ .scroll_up = u };
     }
 
+    /// Scroll the screen down
     pub fn scroll_down(d: u16) @This() {
         return .{ .scroll_down = d };
     }
 
+    /// Erase a part of the screen
     pub fn erase(e: Erase) @This() {
         return .{ .erase = e };
     }
 
+    /// Change the terminal title
     pub fn title(t: []const u8) @This() {
         return .{ .title = t };
     }
@@ -349,26 +408,34 @@ pub const Screen = union(enum) {
 
             .enter_alternate_buffer => try writer.print("\x1b[?1049h", .{}),
             .leave_alternate_buffer => try writer.print("\x1b[?1049l", .{}),
-
-            .save_cursor => try writer.print("\x1b[s", .{}),
-            .restore_cursor => try writer.print("\x1b[u", .{}),
         }
     }
 };
 
+/// Line commands
 pub const Line = union(enum) {
+    /// Insert new lines shifting lines on and after
+    /// the cursor's position down
     insert: u16,
+    /// Delete lines from the buffer starting with the
+    /// line the cursor is one
     delete: u16,
+    /// Erase all the specific lines with `space` characters
     erase: Erase,
 
+    /// Insert new lines shifting lines on and after
+    /// the cursor's position down
     pub fn insert(i: u16) @This() {
         return .{ .insert = i };
     }
 
+    /// Delete lines from the buffer starting with the
+    /// line the cursor is one
     pub fn delete(d: u16) @This() {
         return .{ .delete = d };
     }
 
+    /// Erase all the specific lines with `space` characters
     pub fn erase(e: Erase) @This() {
         return .{ .erase = e };
     }
@@ -382,19 +449,38 @@ pub const Line = union(enum) {
     }
 };
 
+/// Character commands
 pub const Character = union(enum) {
+    /// Insert spaces at the current cursor position,
+    /// shifting all existing text to the right.
+    ///
+    /// All text that exit the screen to the right are removed
     insert: u16,
+    /// Delete characters at the current cursor position,
+    /// shifting in space characters fromt he right edge
+    /// of the screen
     delete: u16,
+    /// Erase characters from the current cursor position
+    /// by overwriting them with a `space` character
     erase: u16,
 
+    /// Insert spaces at the current cursor position,
+    /// shifting all existing text to the right.
+    ///
+    /// All text that exit the screen to the right are removed
     pub fn insert(i: u16) @This() {
         return .{ .insert = i };
     }
 
+    /// Delete characters at the current cursor position,
+    /// shifting in space characters fromt he right edge
+    /// of the screen
     pub fn delete(d: u16) @This() {
         return .{ .delete = d };
     }
 
+    /// Erase characters from the current cursor position
+    /// by overwriting them with a `space` character
     pub fn erase(e: u16) @This() {
         return .{ .erase = e };
     }
@@ -408,12 +494,22 @@ pub const Character = union(enum) {
     }
 };
 
+/// Commands to change what the terminal captures
+/// and sends and input ansi sequences.
 pub const Capture = enum {
+    /// Enable mouse events
     EnableMouse,
+    /// Disable mouse events
     DisableMouse,
+    /// Enable focus events
     EnableFocus,
+    /// Disable focus events
     DisableFocus,
+    /// Enable custom handling for content that is pasted
+    /// into the terminal
     EnableBracketedPaste,
+    /// Disable custom handling for content that is pasted
+    /// into the terminal
     DisableBracketedPaste,
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
@@ -500,13 +596,25 @@ test "action::Cursor::format" {
         .down = 2,
         .left = 3,
         .right = 4,
-        .col = 5,
-        .row = 6,
         .blink = true,
         .visibility = .visible,
         .shape = .bar,
     }});
-    try std.testing.expect(std.mem.eql(u8, format, "\x1b[1A\x1b[2B\x1b[3D\x1b[4C\x1b[6;5H\x1b[?12h\x1b[?25h\x1b[6 q"));
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[1A\x1b[2B\x1b[3D\x1b[4C\x1b[?12h\x1b[?25h\x1b[6 q"));
+    std.testing.allocator.free(format);
+
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Cursor {
+        .col = 5,
+        .row = 6,
+    }});
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[6;5H"));
+    std.testing.allocator.free(format);
+
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Cursor {
+        .save = true,
+        .restore = true,
+    }});
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[s\x1b[u"));
     std.testing.allocator.free(format);
 
     format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Cursor {
@@ -533,14 +641,6 @@ test "action::Screen::format" {
 
     format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.LeaveAlternateBuffer });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1049l"));
-    std.testing.allocator.free(format);
-
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.SaveCursor });
-    try std.testing.expect(std.mem.eql(u8, format, "\x1b[s"));
-    std.testing.allocator.free(format);
-
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.RestoreCursor });
-    try std.testing.expect(std.mem.eql(u8, format, "\x1b[u"));
     std.testing.allocator.free(format);
 
     format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.SoftReset });

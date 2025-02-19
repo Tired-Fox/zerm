@@ -4,11 +4,19 @@ pub const style = @import("style.zig");
 pub const action = @import("action.zig");
 pub const events = @import("events.zig");
 
+/// Target where printed commands are written
 pub const Source = enum {
     Stdout,
     Stderr,
 };
 
+/// Run each command in the arguments
+///
+/// All commands that print to the `source` will
+/// be buffered and batched all at once.
+///
+/// All commands that run native code will be executed
+/// immediatly.
 pub fn execute(source: Source, ops: anytype) !void {
     const output = switch (source) {
         .Stdout => std.io.getStdOut().writer(),
