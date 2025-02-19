@@ -45,11 +45,12 @@ pub fn main() !void {
     }
 
     try execute(.Stdout, .{
-        "\r",
+        Line.erase(.FromBeginning),
+        '\r',
         Style { .fg = Color.Green },
-        "✓",
+        '✓',
         Reset.fg(),
-        " Loading...\n"
+        " Success\n"
     });
 
     try execute(.Stdout, .{

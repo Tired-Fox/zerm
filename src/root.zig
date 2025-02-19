@@ -17,6 +17,32 @@ pub const Source = enum {
 ///
 /// All commands that run native code will be executed
 /// immediatly.
+///
+/// Supports u8, u16, u21, u32, comptime_int and anything that implements the `format`
+/// function for printing with a writer.
+///
+/// # Example
+///
+/// ```zig
+/// pub const CustomType = struct {
+///    pub fn format(
+///       _: @This(),
+///       comptime _: []const u8,
+///       _: std.fmt.FormatOptions,
+///       writer: anytype
+///    ) !void {
+///         try writer.print("CustomType");
+///    }
+/// }
+///
+/// try execute(.Stdout, .{
+///     Style { .fg = Color.Green },
+///     '✓',
+///     Reset.fg(),
+///     ' ',
+///     CustomType{},
+/// });
+/// ```
 pub fn execute(source: Source, ops: anytype) !void {
     const output = switch (source) {
         .Stdout => std.io.getStdOut().writer(),
@@ -30,12 +56,7 @@ pub fn execute(source: Source, ops: anytype) !void {
         const t = @TypeOf(op);
         switch (t) {
             u8 => try writer.print("{c}", .{op}),
-            u16 => {
-                var buff: [2]u8 = undefined;
-                const length = try std.unicode.utf16LeToUtf8(&buff, [1]u16{op});
-                try writer.print("{s}", .{buff[0..length]});
-            },
-            u21 => {
+            u16, u21, u32, comptime_int => {
                 var buff: [4]u8 = undefined;
                 const length = try std.unicode.utf8Encode(op, &buff);
                 try writer.print("{s}", .{buff[0..length]});
