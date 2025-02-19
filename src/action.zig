@@ -12,6 +12,31 @@ const Utils = switch (@import("builtin").target.os.tag) {
             dwMode: CONSOLE_MODE
         ) callconv(.Win64) std.os.windows.BOOL;
 
+        extern "kernel32" fn GetConsoleScreenBufferInfo(
+            hConsoleInput: std.os.windows.HANDLE,
+            console_screen_buffer_info: *CONSOLE_SCREEN_BUFFER_INFO
+        ) callconv(.Win64) std.os.windows.BOOL;
+
+        pub const COORD = packed struct {
+            x: i16 = 0,
+            y: i16 = 0,
+        };
+
+        pub const SMALL_RECT = packed struct {
+            left: i16 = 0,
+            top: i16 = 0,
+            right: i16 = 0,
+            bottom: i16 = 0,
+        };
+
+        pub const CONSOLE_SCREEN_BUFFER_INFO = packed struct {
+            size: COORD = .{},
+            cursor_position: COORD = .{},
+            attributes: u16 = 0,
+            windows: SMALL_RECT = .{},
+            maximum_window_size: COORD = .{}
+        };
+
         pub const CONSOLE_MODE = packed struct(u32) {
             ENABLE_PROCESSED_INPUT: u1 = 0,
             ENABLE_LINE_INPUT: u1 = 0,
@@ -198,6 +223,9 @@ pub const Cursor = struct {
     }
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        if (value.save) try writer.print("\x1b[s", .{});
+        if (value.restore) try writer.print("\x1b[u", .{});
+
         if (value.col != null and value.row != null) {
             const left = value.left orelse 0;
             const right = value.right orelse 0;
@@ -257,9 +285,6 @@ pub const Cursor = struct {
                 .bar => try writer.print("\x1b[6 q", .{}),
             }
         }
-
-        if (value.save) try writer.print("\x1b[s", .{});
-        if (value.restore) try writer.print("\x1b[u", .{});
     }
 };
 
@@ -570,6 +595,54 @@ pub const Hyperlink = struct {
         try writer.print("\x1b]8;;{s}\x1b\\{s}\x1b]8;;\x1b\\", .{ value.uri, value.label orelse value.uri });
     }
 };
+
+/// Get the current terminals size { COLS, ROWS }
+pub fn getTermSize() !std.meta.Tuple(&[_]type{ u16, u16 }) {
+    switch (@import("builtin").target.os.tag) {
+        .windows => {
+            const stdout = try std.os.windows.GetStdHandle(std.os.windows.STD_OUTPUT_HANDLE);
+
+            var info = Utils.CONSOLE_SCREEN_BUFFER_INFO {};
+            if (Utils.GetConsoleScreenBufferInfo(stdout, &info) == 0) {
+                return error.GetConsoleScreenBufferInfo;
+            }
+
+            const size = info.size;
+            return .{ @intCast(size.x), @intCast(size.y) };
+        },
+        else => {
+            const stdout = std.os.linux.STDOUT_FILENO;
+            const tiocgwinsz = std.os.linux.T.IOCGWINSZ;
+            const winsize = std.os.linux.winsize;
+
+            var size = winsize {};
+            std.os.linux.ioctl(stdout, tiocgwinsz, &size);
+
+            return .{ size.ws_col, size.ws_row };
+        },
+    }
+}
+
+/// Get the current terminals size in pixels { X, Y }
+///
+/// **NOTE**: Windows is not supported and will always return { 0, 0 }
+pub fn getTermSizePixels() !std.meta.Tuple(&[_]type{ u16, u16 }) {
+    switch (@import("builtin").target.os.tag) {
+        .windows => {
+            return .{ 0, 0 };
+        },
+        else => {
+            const stdout = std.os.linux.STDOUT_FILENO;
+            const tiocgwinsz = std.os.linux.T.IOCGWINSZ;
+            const winsize = std.os.linux.winsize;
+
+            var size = winsize {};
+            std.os.linux.ioctl(stdout, tiocgwinsz, &size);
+
+            return .{ size.ws_xpixel, size.ws_ypixel };
+        },
+    }
+}
 
 test "action::Url::format" {
     const format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Hyperlink { .uri = "https://example.com", .label = "Example" } });

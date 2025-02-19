@@ -3,6 +3,7 @@ const termz = @import("termz");
 
 const Screen = termz.action.Screen;
 const Cursor = termz.action.Cursor;
+const getTermSize = termz.action.getTermSize;
 const Hyperlink = termz.action.Hyperlink;
 const Line = termz.action.Line;
 const Capture = termz.action.Capture;
@@ -23,6 +24,7 @@ pub fn main() !void {
         "Hello, ",
         Reset.fg(),
 
+        Cursor.Save,
         Style { .fg = Color.Magenta },
         "world!\n",
         Reset.fg(),
@@ -55,13 +57,14 @@ pub fn main() !void {
 
     try execute(.Stdout, .{
         Screen.title("Hello Everyone"),
+
+        Cursor.Restore,
         Line.erase(.ToEnd),
 
         Style { .fg = Color.Yellow },
-        "everyone!\n",
+        "everyone!",
         Reset.fg(),
-
-        Cursor { .shape = .block }
+        Cursor { .shape = .block, .down = 2, .col = 1 }
     });
 
     try Screen.enableRawMode();
@@ -120,5 +123,8 @@ pub fn main() !void {
         Style { .underline = true },
         Hyperlink { .uri = "https://example.com", .label = "Example" },
         Reset.underline(),
+        '\n',
     });
+
+    std.log.debug("Terminal Size: {any}", .{ getTermSize() });
 }
