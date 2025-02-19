@@ -103,22 +103,16 @@ pub const Key = union(enum) {
     }
 };
 
-pub const Modifiers = packed struct(u6) {
+pub const Modifiers = packed struct(u3) {
     alt: bool = false,
     ctrl: bool = false,
     shift: bool = false,
-    num_lock: bool = false,
-    scroll_lock: bool = false,
-    caps_lock: bool = false,
 
     pub fn merge(a: @This(), b: @This()) @This() {
         return .{
             .alt = a.alt or b.alt,
             .ctrl = a.ctrl or b.ctrl,
             .shift = a.shift or b.shift,
-            .num_lock = a.num_lock or b.num_lock,
-            .scroll_lock = a.scroll_lock or b.scroll_lock,
-            .caps_lock = a.caps_lock or b.caps_lock,
         };
     }
 };
@@ -177,35 +171,173 @@ pub const KeyEvent = struct {
     modifiers: Modifiers = .{}
 };
 
+pub const MouseButton = enum(u2) { Left = 0, Middle = 1, Right = 2 };
+pub const ButtonState = enum(u2) { Pressed, Released };
+pub const ScrollDirection = enum(u2) { Up, Down };
+
+pub const MouseButtonEvent = struct {
+    type: MouseButton,
+    state: ButtonState,
+};
+
+pub const MouseEventType = union(enum) {
+    move: void,
+    button: MouseButtonEvent,
+    scroll: ScrollDirection,
+};
+
 pub const MouseEvent = struct {
-    // TODO:
+    col: u16,
+    row: u16,
+
+    type: MouseEventType,
 };
 
 pub const Event = union(enum) {
     key_event: KeyEvent,
     mouse_event: MouseEvent,
+    focus_event: bool,
+    paste_event: []const u8
 };
 
-pub fn parseEvent() !?Event {
+// ABCD F H M PQRS Z m ~
+// 65 66 67 68  70  72  77  80 81 82 83  90  109  126
+fn isSequenceEnd(char: u8) bool {
+    return ('A' <= char and char <= 'D')
+        or char == 'F'
+        or ('H' <= char and char <= 'I')
+        or ('M' <= char and char <= 'O')
+        or ('P' <= char and char <= 'S')
+        or char == 'Z'
+        or char == 'm'
+        or char == '~';
+}
+
+/// Parse the next input event
+///
+/// Most if not all event data is stack allocated. The exception to this
+/// is if you enable bracketed pasting. This will provide the chance for
+/// a paste event to occur where the value is a variable length string
+/// allocated during parsing.
+///
+/// User is responsible for freeing memory allocated from a paste event
+///
+/// Usually it would be best to switch on the response and ensure that `free` is called
+/// for `paste_event` even if it never occurs.
+///
+/// # Example
+///
+/// ```zig
+/// var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+/// defer arena.deinit();
+/// const allocator = arena.allocator();
+///
+/// if (try events.parseEvent(alloc)) |event| {
+///     switch (event) {
+///         .paste_event => |content| allocator.free(content),
+///         else => {}
+///     }
+/// }
+/// ```
+pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
     const stdin = std.io.getStdIn();
     const reader = stdin.reader();
 
     var buff: [1]u8 = undefined;
-    const read = try reader.read(&buff);
-    if (read == 0) {
-        return null;
-    }
+    var read = try reader.read(&buff);
+    if (read == 0) return null;
 
     switch (buff[0]) {
         0x1B => {
-            // TODO: Parse Event
+            read = try reader.read(&buff);
+            if (read == 1) {
+                switch (buff[0]) {
+                    '[' => {
+                        var buffer = std.ArrayList(u8).init(allocator);
+                        defer buffer.deinit();
+
+
+                        while (true) {
+                            read = try reader.read(&buff);
+                            if (read == 0) break;
+                            try buffer.append(buff[0]);
+                            if (isSequenceEnd(buff[0])) break;
+                        }
+
+                        const sequence = buffer.items;
+
+                        if (sequence.len > 0 and sequence[0] == '<') {
+                            var iter = std.mem.split(u8, sequence[1..sequence.len - 1], ";");
+                            const variant = if (iter.next()) |next| try std.fmt.parseInt(u16, next, 10) else return null;
+                            const x = if (iter.next()) |next| try std.fmt.parseInt(u16, next, 10) else return null;
+                            const y = if (iter.next()) |next| try std.fmt.parseInt(u16, next, 10) else return null;
+
+                            switch (variant) {
+                                35 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .move = {} } } },
+                                64 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Down } } },
+                                63 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Up } } },
+                                else => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{
+                                    .button = .{ .type = @enumFromInt(variant), .state = if (sequence[sequence.len - 1] == 'm') .Released else .Pressed }
+                                } } },
+                            }
+                        } else if (sequence.len == 1) {
+                            switch (sequence[0]) {
+                                'O' => return Event { .focus_event = false },
+                                'I' => return Event { .focus_event = true },
+                                'A' => return Event { .key_event = .{ .key = Key.Up } },
+                                'B' => return Event { .key_event = .{ .key = Key.Down } },
+                                'C' => return Event { .key_event = .{ .key = Key.Right } },
+                                'D' => return Event { .key_event = .{ .key = Key.Left } },
+                                'F' => return Event { .key_event = .{ .key = Key.End } },
+                                'H' => return Event { .key_event = .{ .key = Key.Home } },
+                                'Z' => return Event { .key_event = .{ .key = Key.Tab, .modifiers = .{ .shift = true } } },
+                                else => {}
+                            }
+                        } else if (std.mem.eql(u8, sequence, "2~")) {
+                            return Event { .key_event = .{ .key = Key.Insert } };
+                        } else if (std.mem.eql(u8, sequence, "3~")) {
+                            return Event { .key_event = .{ .key = Key.Delete } };
+                        } else if (std.mem.eql(u8, sequence, "5~")) {
+                            return Event { .key_event = .{ .key = Key.Pageup } };
+                        } else if (std.mem.eql(u8, sequence, "6~")) {
+                            return Event { .key_event = .{ .key = Key.Pagedown } };
+                        }
+                        else if (std.mem.eql(u8, sequence, "201~")) {}
+                        else if (std.mem.eql(u8, sequence, "200~")) {
+                            buffer.clearAndFree();
+
+                            while (true) {
+                                read = try reader.read(&buff);
+                                if (read == 0) break;
+                                switch (buff[0]) {
+                                    '~' => {
+                                        if (buffer.items.len >= 5 and std.mem.eql(u8, buffer.items[buffer.items.len-5..buffer.items.len], "\x1b[201")) {
+                                            buffer.shrinkAndFree(buffer.items.len - 5);
+                                            break;
+                                        }
+                                        try buffer.append(buff[0]);
+                                    },
+                                    else => try buffer.append(buff[0]),
+                                }
+                            }
+
+                            return Event{ .paste_event = try buffer.toOwnedSlice() };
+                        }
+
+                        std.debug.print("Unknown CSI sequence: {s}", .{ sequence });
+                        return null;
+                    },
+                    else => return Event { .key_event = .{ .key = Key.char(buff[0]), .modifiers = .{ .alt = true } } }
+                }
+            }
             return Event { .key_event = .{ .key = Key.Esc } };
         },
         0x0D, 0x0A => return Event { .key_event = .{ .key = Key.Enter } },
-        0x08 => return Event { .key_event = .{ .key = Key.Backspace } },
+        0x08 => return Event { .key_event = .{ .key = Key.Backspace, .modifiers = .{ .ctrl = true } } },
         0x09 => return Event { .key_event = .{ .key = Key.Tab } },
-        0x7F => return Event { .key_event = .{ .key = Key.Delete } },
-        0x00 => return Event { .key_event = .{ .key = Key.char('@'), .modifiers = .{ .ctrl = true } } },
+        0x7F => return Event { .key_event = .{ .key = Key.Backspace } },
+        // 126 => return Event { .key_event = .{ .key = Key.Delete } },
+        0x00 => return Event { .key_event = .{ .key = Key.char(' '), .modifiers = .{ .ctrl = true } } },
         0x01 => return Event { .key_event = .{ .key = Key.char('a'), .modifiers = .{ .ctrl = true } } },
         0x02 => return Event { .key_event = .{ .key = Key.char('b'), .modifiers = .{ .ctrl = true } } },
         0x03 => return Event { .key_event = .{ .key = Key.char('c'), .modifiers = .{ .ctrl = true } } },

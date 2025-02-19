@@ -58,19 +58,32 @@ pub fn main() !void {
         "Press 'ctrl+c' to quit:\r\n"
     });
 
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
     while (true) {
         if (events.pollEvent()) {
-            if (try events.parseEvent()) |event| {
-                std.log.debug("{any}", .{ event });
+            if (try events.parseEvent(alloc)) |event| {
                 switch (event) {
                     .key_event => |ke| {
+                        std.log.debug("{any}", .{ ke });
                         if (ke.key.eql(Key.char('c')) and ke.modifiers.ctrl) {
                             break;
                         } else if (ke.key.eql(Key.char('q'))) {
                             break;
                         }
                     },
-                    else => {}
+                    .mouse_event => |me| {
+                        std.log.debug("{any}", .{ me });
+                    },
+                    .paste_event => |content| {
+                        defer alloc.free(content);
+                        std.log.debug("{s}", .{content});
+                    },
+                    else => {
+                        std.log.debug("{any}", .{ event });
+                    }
                 }
             }
         }
