@@ -562,6 +562,21 @@ pub const Capture = enum {
     }
 };
 
+pub const Hyperlink = struct {
+    uri: []const u8,
+    label: ?[]const u8 = null,
+
+    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        try writer.print("\x1b]8;;{s}\x1b\\{s}\x1b]8;;\x1b\\", .{ value.uri, value.label orelse value.uri });
+    }
+};
+
+test "action::Url::format" {
+    const format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Hyperlink { .uri = "https://example.com", .label = "Example" } });
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b]8;;https://example.com\x1b\\Example\x1b]8;;\x1b\\"));
+    std.testing.allocator.free(format);
+}
+
 test "action::Capture::format" {
     if (@import("builtin").target.os.tag != .windows) {
         var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableMouse });

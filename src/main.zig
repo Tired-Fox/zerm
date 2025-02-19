@@ -3,6 +3,7 @@ const termz = @import("termz");
 
 const Screen = termz.action.Screen;
 const Cursor = termz.action.Cursor;
+const Hyperlink = termz.action.Hyperlink;
 const Line = termz.action.Line;
 const Capture = termz.action.Capture;
 const Style = termz.style.Style;
@@ -21,8 +22,6 @@ pub fn main() !void {
         Style { .fg = Color.Red },
         "Hello, ",
         Reset.fg(),
-
-        Cursor.Save,
 
         Style { .fg = Color.Magenta },
         "world!\n",
@@ -46,8 +45,15 @@ pub fn main() !void {
     }
 
     try execute(.Stdout, .{
+        "\r",
+        Style { .fg = Color.Green },
+        "✓",
+        Reset.fg(),
+        " Loading...\n"
+    });
+
+    try execute(.Stdout, .{
         Screen.title("Hello Everyone"),
-        Cursor.Restore,
         Line.erase(.ToEnd),
 
         Style { .fg = Color.Yellow },
@@ -108,4 +114,10 @@ pub fn main() !void {
     });
 
     try Screen.disableRawMode();
+
+    try execute(.Stdout, .{
+        Style { .underline = true },
+        Hyperlink { .uri = "https://example.com", .label = "Example" },
+        Reset.underline(),
+    });
 }
