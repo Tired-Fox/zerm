@@ -213,17 +213,15 @@ fn isSequenceEnd(char: u8) bool {
         or char == '~';
 }
 
-/// Parse the next input event
+/// Parse the next input event.
 ///
-/// Most if not all event data is stack allocated. The exception to this
-/// is if you enable bracketed pasting. This will provide the chance for
-/// a paste event to occur where the value is a variable length string
-/// allocated during parsing.
+/// The User is responsible for freeing memory allocated from a paste event
 ///
-/// User is responsible for freeing memory allocated from a paste event
+/// **WARNING**: This function blocks until the next input event.
 ///
-/// Usually it would be best to switch on the response and ensure that `free` is called
-/// for `paste_event` even if it never occurs.
+/// **WARNING**: Most of the data is stack allocated, except for the `paste_event`.
+/// This event occurs when the `BracketedPaste` feature is enabled and contains a variable
+/// length allocated string which is the content pasted into the terminal.
 ///
 /// # Example
 ///
@@ -244,22 +242,20 @@ pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
     const reader = stdin.reader();
 
     var buff: [1]u8 = undefined;
-    var read = try reader.read(&buff);
-    if (read == 0) return null;
+    _ = try reader.read(&buff);
 
     switch (buff[0]) {
         0x1B => {
-            read = try reader.read(&buff);
-            if (read == 1) {
+            if (pollEvent()) {
+                _ = try reader.read(&buff);
                 switch (buff[0]) {
                     '[' => {
                         var buffer = std.ArrayList(u8).init(allocator);
                         defer buffer.deinit();
 
 
-                        while (true) {
-                            read = try reader.read(&buff);
-                            if (read == 0) break;
+                        while (pollEvent()) {
+                            _ = try reader.read(&buff);
                             try buffer.append(buff[0]);
                             if (isSequenceEnd(buff[0])) break;
                         }
@@ -306,9 +302,8 @@ pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
                         else if (std.mem.eql(u8, sequence, "200~")) {
                             buffer.clearAndFree();
 
-                            while (true) {
-                                read = try reader.read(&buff);
-                                if (read == 0) break;
+                            while (pollEvent()) {
+                                _ = try reader.read(&buff);
                                 switch (buff[0]) {
                                     '~' => {
                                         if (buffer.items.len >= 5 and std.mem.eql(u8, buffer.items[buffer.items.len-5..buffer.items.len], "\x1b[201")) {
@@ -371,6 +366,8 @@ pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
         0x1F => return Event { .key_event = .{ .key = Key.char('_'), .modifiers = .{ .ctrl = true } } },
         else => return Event { .key_event = .{ .key = Key.char(buff[0]) } },
     }
+
+    return null;
 }
 
 test "event::pollEvent" {
