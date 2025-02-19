@@ -57,7 +57,6 @@ pub fn main() !void {
         Cursor { .shape = .block }
     });
 
-    // PERF: Broken on linux
     try Screen.enableRawMode();
     errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
 
@@ -79,7 +78,7 @@ pub fn main() !void {
             if (try events.parseEvent(alloc)) |event| {
                 switch (event) {
                     .key_event => |ke| {
-                        std.log.debug("{any}", .{ ke });
+                        std.log.debug("{any}\r", .{ ke });
                         if (ke.key.eql(Key.char('c')) and ke.modifiers.ctrl) {
                             break;
                         } else if (ke.key.eql(Key.char('q'))) {
@@ -87,14 +86,14 @@ pub fn main() !void {
                         }
                     },
                     .mouse_event => |me| {
-                        std.log.debug("{any}", .{ me });
+                        std.log.debug("{any}\r", .{ me });
                     },
                     .paste_event => |content| {
                         defer alloc.free(content);
-                        std.log.debug("{s}", .{content});
+                        std.log.debug("{s}\r", .{content});
                     },
                     else => {
-                        std.log.debug("{any}", .{ event });
+                        std.log.debug("{any}\r", .{ event });
                     }
                 }
             }

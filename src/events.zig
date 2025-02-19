@@ -171,7 +171,16 @@ pub const KeyEvent = struct {
     modifiers: Modifiers = .{}
 };
 
-pub const MouseButton = enum { Left, Middle, Right, ScrollRight, ScrollLeft, Other };
+pub const MouseButton = enum {
+    Left,
+    Middle,
+    Right,
+    ScrollRight,
+    ScrollLeft,
+    XButton1,
+    XButton2,
+    Other
+};
 pub const ButtonState = enum(u2) { Pressed, Released };
 pub const ScrollDirection = enum(u2) { Up, Down };
 
@@ -270,8 +279,8 @@ pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
 
                             switch (variant) {
                                 35 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .move = {} } } },
-                                64 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Down } } },
-                                63 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Up } } },
+                                64 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Up } } },
+                                65 => return Event { .mouse_event = .{ .col = x, .row = y, .type = .{ .scroll = .Down } } },
                                 else => return Event { .mouse_event = .{
                                     .col = x,
                                     .row = y,
@@ -283,6 +292,8 @@ pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
                                                 2 => .Right,
                                                 66 => .ScrollLeft,
                                                 67 => .ScrollRight,
+                                                128 => .XButton1,
+                                                129 => .XButton2,
                                                 else => .Other
                                             },
                                             .state = if (sequence[sequence.len - 1] == 'm') .Released else .Pressed
