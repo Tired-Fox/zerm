@@ -68,12 +68,7 @@ const Utils = switch (@import("builtin").target.os.tag) {
             .ENABLE_ECHO_INPUT = 1,
             .ENABLE_LINE_INPUT = 1,
             .ENABLE_PROCESSED_INPUT = 1,
-            .ENABLE_INSERT_MODE = 1,
             .ENABLE_QUICK_EDIT_MODE = 1,
-        };
-
-        pub const STDIN_MODE: CONSOLE_MODE = .{
-            .ENABLE_VIRTUAL_TERMINAL_INPUT = 1
         };
 
         pub const STDOUT_MODE: CONSOLE_MODE = .{
@@ -210,7 +205,7 @@ pub const Cursor = struct {
     /// Hide the cursor
     pub const Hide: @This() = .{ .visibility = .hidden };
     /// Show the hidden cursor
-    pub const Show: @This() = .{ .restore = .visible };
+    pub const Show: @This() = .{ .visibility = .visible };
 
     /// Start or stop cursor blinking
     pub fn blink(s: bool) @This() {
@@ -344,8 +339,7 @@ pub const Screen = union(enum) {
                     return error.UnkownStdinMode;
                 }
 
-                mode = mode.And(Utils.STDIN_MASK.Not())
-                    .Or(Utils.STDIN_MODE);
+                mode = mode.And(Utils.STDIN_MASK.Not());
 
                 if (Utils.SetConsoleMode(stdin, mode) == 0) {
                     return error.InvalidStdinEntry;
@@ -381,8 +375,7 @@ pub const Screen = union(enum) {
                     return error.UnkownStdinMode;
                 }
 
-                mode  = mode.And(Utils.STDIN_MODE.Not())
-                    .Or(Utils.STDIN_MASK);
+                mode  = mode.Or(Utils.STDIN_MASK);
                 if (Utils.SetConsoleMode(stdin, mode) == 0) {
                     return error.InvalidStdinEntry;
                 }

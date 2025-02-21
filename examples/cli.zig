@@ -11,12 +11,19 @@ const Style = termz.style.Style;
 const Color = termz.style.Color;
 const Reset = termz.style.Reset;
 
-const events = termz.events;
-const Key = termz.events.Key;
+const Utf8ConsoleOutput = termz.Utf8ConsoleOutput;
+
+const event = termz.event;
+const Key = termz.event.Key;
 
 const execute = termz.execute;
 
 pub fn main() !void {
+    // This is needed for windows since it wants utf16
+    // but zig encodes it's output as utf8
+    const utf8_ctx = Utf8ConsoleOutput.init();
+    defer utf8_ctx.deinit();
+
     try execute(.Stdout, .{
         Screen.title("Hello World"),
 
@@ -84,10 +91,10 @@ pub fn main() !void {
     const alloc = arena.allocator();
 
     while (true) {
-        if (events.pollEvent()) {
-            if (try events.parseEvent(alloc)) |event| {
-                switch (event) {
-                    .key_event => |ke| {
+        if (event.pollEvent()) {
+            if (try event.parseEvent(alloc)) |evt| {
+                switch (evt) {
+                    .key => |ke| {
                         std.log.debug("{any}\r", .{ ke });
                         if (ke.key.eql(Key.char('c')) and ke.modifiers.ctrl) {
                             break;
@@ -95,15 +102,15 @@ pub fn main() !void {
                             break;
                         }
                     },
-                    .mouse_event => |me| {
+                    .mouse => |me| {
                         std.log.debug("{any}\r", .{ me });
                     },
-                    .paste_event => |content| {
+                    .paste => |content| {
                         defer alloc.free(content);
                         std.log.debug("{s}\r", .{content});
                     },
                     else => {
-                        std.log.debug("{any}\r", .{ event });
+                        std.log.debug("{any}\r", .{ evt });
                     }
                 }
             }

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 /// Representation of keyboard input
 pub const Key = union(enum) {
@@ -119,7 +120,7 @@ pub const Modifiers = packed struct(u3) {
     }
 };
 
-const Utils = switch (@import("builtin").target.os.tag) {
+const Utils = switch (builtin.target.os.tag) {
     .windows => struct {
         extern "kernel32" fn GetNumberOfConsoleInputEvents(
             hConsoleInput: std.os.windows.HANDLE,
@@ -133,7 +134,7 @@ const Utils = switch (@import("builtin").target.os.tag) {
 ///
 /// @return true if there is data in the buffer
 pub fn pollEvent() bool {
-    switch (@import("builtin").target.os.tag) {
+    switch (builtin.target.os.tag) {
         .windows => {
             var count: u32 = 0; 
             const stdin = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch { return false; };
@@ -168,7 +169,8 @@ pub fn readLine(allocator: std.mem.Allocator, max_size: usize) !?[]u8 {
 /// Keyboard event
 pub const KeyEvent = struct {
     key: Key,
-    modifiers: Modifiers = .{}
+    modifiers: Modifiers = .{},
+    pressed: bool = true,
 };
 
 /// Supported mouse button events
@@ -182,48 +184,54 @@ pub const MouseButton = enum {
     XButton2,
     Other
 };
-pub const ButtonState = enum(u2) { Pressed, Released };
-pub const ScrollDirection = enum(u2) { Up, Down };
 
-pub const MouseButtonEvent = struct {
-    type: MouseButton,
-    state: ButtonState,
-};
+pub const ButtonState = enum(u2) { pressed, released };
+pub const ScrollDirection = enum(u2) { up, down, left, right };
 
-pub const MouseEventType = union(enum) {
+pub const MouseEventKind = union(enum) {
+    pub const Move: @This() = .{ .move = {} };
+    pub const ScrollDown: @This() = .{ .scroll = .down };
+    pub const ScrollUp: @This() = .{ .scroll = .up };
+    pub const ScrollLeft: @This() = .{ .scroll = .left };
+    pub const ScrollRight: @This() = .{ .scroll = .right };
+
     move: void,
-    button: MouseButtonEvent,
+
+    down: MouseButton,
+    up: MouseButton,
+    drag: MouseButton,
+
     scroll: ScrollDirection,
+
+    pub fn down(button: MouseButton) @This() {
+        return .{ .down = button };
+    }
+
+    pub fn up(button: MouseButton) @This() {
+        return .{ .up = button };
+    }
+
+    pub fn drag(button: MouseButton) @This() {
+        return .{ .drag = button };
+    }
 };
 
 pub const MouseEvent = struct {
     col: u16,
     row: u16,
 
-    type: MouseEventType,
+    kind: MouseEventKind,
 };
 
 pub const Event = union(enum) {
-    key_event: KeyEvent,
-    mouse_event: MouseEvent,
+    key: KeyEvent,
+    mouse: MouseEvent,
+    resize: std.meta.Tuple(&[_]type{ u16, u16 }),
     /// Requires `Capture.EnableFocus` to be executed
-    focus_event: bool,
+    focus: bool,
     /// Requires `Capture.EnableBracketedPaste` to be executed
-    paste_event: []const u8
+    paste: []const u8,
 };
-
-// ABCD F H M PQRS Z m ~
-// 65 66 67 68  70  72  77  80 81 82 83  90  109  126
-fn isSequenceEnd(char: u8) bool {
-    return ('A' <= char and char <= 'D')
-        or char == 'F'
-        or ('H' <= char and char <= 'I')
-        or ('M' <= char and char <= 'O')
-        or ('P' <= char and char <= 'S')
-        or char == 'Z'
-        or char == 'm'
-        or char == '~';
-}
 
 /// Parse the next input event.
 ///
@@ -251,62 +259,10 @@ fn isSequenceEnd(char: u8) bool {
 /// ```
 pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
     switch (builtin.os.tag) {
-        .windows => {
-
-        }
+        .windows => return try @import("./event/windows.zig").parseEvent(allocator),
+        else => return try @import("./event/unix.zig").parseEvent(allocator),
     }
 }
- // fn try_read(&mut self, timeout: Option<Duration>) -> std::io::Result<Option<InternalEvent>> {
- //        let poll_timeout = PollTimeout::new(timeout);
- //
- //        loop {
- //            if let Some(event_ready) = self.poll.poll(poll_timeout.leftover())? {
- //                let number = self.console.number_of_console_input_events()?;
- //                if event_ready && number != 0 {
- //                    let event = match self.console.read_single_input_event()? {
- //                        InputRecord::KeyEvent(record) => {
- //                            handle_key_event(record, &mut self.surrogate_buffer)
- //                        }
- //                        InputRecord::MouseEvent(record) => {
- //                            let mouse_event =
- //                                handle_mouse_event(record, &self.mouse_buttons_pressed);
- //                            self.mouse_buttons_pressed = MouseButtonsPressed {
- //                                left: record.button_state.left_button(),
- //                                right: record.button_state.right_button(),
- //                                middle: record.button_state.middle_button(),
- //                            };
- //
- //                            mouse_event
- //                        }
- //                        InputRecord::WindowBufferSizeEvent(record) => {
- //                            // windows starts counting at 0, unix at 1, add one to replicate unix behaviour.
- //                            Some(Event::Resize(
- //                                (record.size.x as i32 + 1) as u16,
- //                                (record.size.y as i32 + 1) as u16,
- //                            ))
- //                        }
- //                        InputRecord::FocusEvent(record) => {
- //                            let event = if record.set_focus {
- //                                Event::FocusGained
- //                            } else {
- //                                Event::FocusLost
- //                            };
- //                            Some(event)
- //                        }
- //                        _ => None,
- //                    };
- //
- //                    if let Some(event) = event {
- //                        return Ok(Some(InternalEvent::Event(event)));
- //                    }
- //                }
- //            }
- //
- //            if poll_timeout.elapsed() {
- //                return Ok(None);
- //            }
- //        }
- //    }
 
 test "event::pollEvent" {
     try std.testing.expect(!pollEvent());
