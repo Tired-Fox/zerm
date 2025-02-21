@@ -56,8 +56,12 @@ pub fn main() !void {
     try buffer.setSlice(@divFloor(cols, 2) - @as(u16, @intCast(@divFloor(message.len, 2))), @divFloor(rows, 2), message, null);
 
     const utf8_ctx = Utf8ConsoleOutput.init();
+    defer utf8_ctx.deinit();
+
     try Screen.enableRawMode();
     errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
+    defer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
+
     try execute(.Stdout, .{
         Screen.EnterAlternateBuffer,
         Cursor { .col = 1, .row = 1 },
@@ -66,22 +70,18 @@ pub fn main() !void {
         Capture.EnableFocus,
         Capture.EnableBracketedPaste,
     });
-
-
-    try buffer.render(std.io.getStdOut().writer());
-
-    var buff = [1]u8{ 0 };
-    _ = std.io.getStdIn().reader().read(&buff) catch {};
-
-    _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
-    _ = execute(.Stdout, .{
+    defer _ = execute(.Stdout, .{
         Capture.DisableMouse,
         Capture.DisableFocus,
         Capture.DisableBracketedPaste,
         Cursor.Show,
         Screen.LeaveAlternateBuffer,
     }) catch { std.log.err("error reseting terminal", .{}); };
-    utf8_ctx.deinit();
+
+    try buffer.render(std.io.getStdOut().writer());
+
+    var buff = [1]u8{ 0 };
+    _ = std.io.getStdIn().reader().read(&buff) catch {};
 }
 
 const Cell = struct {

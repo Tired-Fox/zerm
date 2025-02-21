@@ -85,7 +85,7 @@ const ControlKeyState = packed struct (u32) {
 
 pub const MOUSE_EVENT_RECORD = extern struct {
     dwMousePosition: COORD,
-    dwButtonState: i32,
+    dwButtonState: ButtonState,
     dwControlKeyState: u32,
     dwEventFlags: u32,
 };
@@ -96,18 +96,52 @@ const MouseFlags = enum(u32) {
     double = 0x0002,
     wheel = 0x0004,
     hwheel = 0x0008,
+    unknown = 0x0033,
+
+    pub fn from(value: u32) @This() {
+        if (value == 0x0000) {
+            return .click;
+        } else if (value == 0x0001) {
+            return .move;
+        } else if (value == 0x0002) {
+            return .double;
+        } else if (value == 0x0004) {
+            return .wheel;
+        } else if (value == 0x0008) {
+            return .hwheel;
+        } else {
+            return .unknown;
+        }
+    }
 };
 
-const ButtonState = struct {
+const ButtonState = packed struct(i32) {
     state: i32,
 
-    pub fn button(self: *const @This()) event.MouseButton {
-        return if (0x0001 == self.state) return .Left
-        else if (0x0002 == self.state) return .Right
-        else if (0x0004 == self.state) return .Middle
-        else if (0x0008 == self.state) return .XButton1
-        else if (0x0010 == self.state) return .XButton2
-        else return .Left;
+    const Left = 0x0001;
+    const Right = 0x0002;
+    const Middle = 0x0004;
+    const X1 = 0x0008;
+    const X2 = 0x0010;
+
+    pub fn left(self: *const @This()) bool {
+        return self.state & Left != 0;
+    }
+
+    pub fn right(self: *const @This()) bool {
+        return self.state & Right != 0;
+    }
+
+    pub fn middle(self: *const @This()) bool {
+        return self.state & Middle != 0;
+    }
+
+    pub fn x1(self: *const @This()) bool {
+        return self.state & X1 != 0;
+    }
+
+    pub fn x2(self: *const @This()) bool {
+        return self.state & X2 != 0;
     }
 
     pub fn released(self: *const @This()) bool {
@@ -198,71 +232,126 @@ pub fn getSingleInputEvent() !?INPUT_RECORD {
     return buffer[0];
 }
 
-pub fn parseEvent(alloc: std.mem.Allocator) !?Event {
-    _ = alloc;
-    const inputCount = try getNumberOfConsoleInputEvents();
-    if (inputCount != 0) {
-        if (try getSingleInputEvent()) |record| {
-            switch (@as(EventType, @enumFromInt(record.EventType))) {
-                .key => {
-                    return try handleKeyEvent(record.Event.KeyEvent);
-                },
-                .mouse => {
-                    if (handleMouseEvent(record.Event.MouseEvent)) |kind| {
-                        return Event {
-                            .mouse = .{
-                                .col = @intCast(record.Event.MouseEvent.dwMousePosition.x),
-                                .row = @intCast(record.Event.MouseEvent.dwMousePosition.y),
-                                .kind = kind,
-                            }
+pub const EventStream = struct {
+    alloc: std.mem.Allocator,
+
+    surrogate: Surrogate = .{},
+    mouse_buttons: MouseButtonStates = .{},
+
+    pub const Surrogate = struct {
+        value: ?u21 = null
+    };
+
+    pub const MouseButtonStates = struct {
+        left: bool = false,
+        middle: bool = false,
+        right: bool = false,
+        x1: bool = false,
+        x2: bool = false,
+    };
+
+    pub fn init(alloc: std.mem.Allocator) @This() {
+        return .{ .alloc = alloc };
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+
+    /// Check if the stdin buffer has data to read
+    ///
+    /// @return true if there is data in the buffer
+    pub fn pollEvent(self: *const @This()) bool {
+        _ = self;
+        return (getNumberOfConsoleInputEvents() catch 0) > 0;
+    }
+
+    /// Parse the next console input event
+    pub fn parseEvent(self: *@This()) !?Event {
+        const inputCount = try getNumberOfConsoleInputEvents();
+        if (inputCount != 0) {
+            if (try getSingleInputEvent()) |record| {
+                switch (@as(EventType, @enumFromInt(record.EventType))) {
+                    .key => {
+                        return try handleKeyEvent(record.Event.KeyEvent, &self.surrogate);
+                    },
+                    .mouse => {
+                        defer self.mouse_buttons = .{
+                            .left = record.Event.MouseEvent.dwButtonState.left(),
+                            .right = record.Event.MouseEvent.dwButtonState.right(),
+                            .middle = record.Event.MouseEvent.dwButtonState.middle(),
                         };
+
+                        if (handleMouseEvent(record.Event.MouseEvent, &self.mouse_buttons)) |kind| {
+                            return Event {
+                                .mouse = .{
+                                    .col = @intCast(record.Event.MouseEvent.dwMousePosition.x),
+                                    .row = @intCast(record.Event.MouseEvent.dwMousePosition.y),
+                                    .kind = kind,
+                                }
+                            };
+                        }
+                    },
+                    .window_buffer_size => {
+                        const size = record.Event.WindowBufferSizeEvent.dwSize;
+                        return Event {
+                            .resize = .{ @intCast(size.x), @intCast(size.y) }
+                        };
+                    },
+                    .focus => {
+                        return Event {
+                            .focus = record.Event.FocusEvent.bSetFocus == 1
+                        };
+                    },
+                    else => {
+                        // Ignore Menu Record events
                     }
-                },
-                .window_buffer_size => {
-                    const size = record.Event.WindowBufferSizeEvent.dwSize;
-                    return Event {
-                        .resize = .{ @intCast(size.x), @intCast(size.y) }
-                    };
-                },
-                .focus => {
-                    return Event {
-                        .focus = record.Event.FocusEvent.bSetFocus == 1
-                    };
-                },
-                else => {
-                    // Ignore Menu Record events
                 }
             }
         }
-    }
 
-    return null;
-}
+        return null;
+    }
+};
 
 const ParsedKeyEvent = union(enum) {
     surrogate: u21,
     event: KeyEvent,
 };
 
-const KeyState = struct {
-    mutex: std.Thread.Mutex = .{},
-    surrogate: ?u21 = null,
-};
-var KEY_STATE = KeyState {};
-
-fn handleMouseEvent(record: MOUSE_EVENT_RECORD) ?MouseEventKind {
+fn handleMouseEvent(record: MOUSE_EVENT_RECORD, pressed_buttons: *EventStream.MouseButtonStates) ?MouseEventKind {
     // TODO: Resolve relative y instead of using absolute y
-    const button = ButtonState { .state = record.dwButtonState };
-    switch (@as(MouseFlags, @enumFromInt(record.dwEventFlags))) {
+    const button = record.dwButtonState;
+    switch (MouseFlags.from(record.dwEventFlags)) {
         .click, .double => {
             // TODO: Determine if a button has been released
-            return MouseEventKind { .down = button.button() };
+            var kind: ?MouseEventKind = null;
+            if (button.left() and !pressed_buttons.left) {
+                kind = MouseEventKind.down(.Left);
+            } else if (!button.left() and pressed_buttons.left) {
+                kind = MouseEventKind.up(.Left);
+            } else if (button.right() and !pressed_buttons.right) {
+                kind = MouseEventKind.down(.Right);
+            } else if (!button.right() and pressed_buttons.right) {
+                kind = MouseEventKind.up(.Right);
+            } else if (button.middle() and !pressed_buttons.middle) {
+                kind = MouseEventKind.down(.Middle);
+            } else if (!button.middle() and pressed_buttons.middle) {
+                kind = MouseEventKind.up(.Middle);
+            }
+
+            return kind;
         },
         .move => {
+            const b: event.MouseButton =
+                if (button.right()) .Right
+                else if (button.middle()) .Middle
+                else .Left;
+
             if (button.released()) {
                 return MouseEventKind.Move;
             } else {
-                return MouseEventKind.drag(button.button());
+                return MouseEventKind.drag(b);
             }
         },
         .wheel => {
@@ -278,33 +367,31 @@ fn handleMouseEvent(record: MOUSE_EVENT_RECORD) ?MouseEventKind {
             } else if (button.scroll_up()) {
                 return MouseEventKind.ScrollRight;
             }
-        }
+        },
+        else => {}
     }
 
     return null;
 }
 
-fn handleKeyEvent(record: KEY_EVENT_RECORD) !?Event {
+fn handleKeyEvent(record: KEY_EVENT_RECORD, buffered_surrogate: *EventStream.Surrogate) !?Event {
     if (try parseKeyRecord(record)) |parsed_evt| {
         switch (parsed_evt) {
             .surrogate => |new_surrogate| {
-                KEY_STATE.mutex.lock();
-                defer KEY_STATE.mutex.unlock();
-
-                if (KEY_STATE.surrogate) |buffered_surrogate| {
-                    var iter = std.unicode.Utf16LeIterator.init(&[2]u16 { @intCast(buffered_surrogate), @intCast(new_surrogate) });
+                if (buffered_surrogate.value) |bsurrogate| {
+                    var iter = std.unicode.Utf16LeIterator.init(&[2]u16 { @intCast(bsurrogate), @intCast(new_surrogate) });
                     const key = iter.nextCodepoint() catch null;
                     if (key) |k| {
                         return Event {
                             .key = .{
-                                .pressed = record.pressed(),
+                                .kind = if (record.pressed()) .press else .release,
                                 .key = Key.char(k),
                                 .modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers()
                             }
                         };
                     }
                 } else {
-                    KEY_STATE.surrogate = new_surrogate;
+                    buffered_surrogate.value = new_surrogate;
                 }
             },
             .event => |evt| return Event { .key = evt }
@@ -327,7 +414,7 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
                 .event = .{
                     .key = Key.char(try record.uChar.value()),
                     .modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers(),
-                    .pressed = record.pressed(),
+                    .kind = if (record.pressed()) .press else .release,
                 }
             };
         }
@@ -346,36 +433,36 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
         @intFromEnum(VK.BACK) => result = Key.Backspace,
         @intFromEnum(VK.ESCAPE) => result = Key.Esc,
         @intFromEnum(VK.RETURN) => result = Key.Enter,
-        @intFromEnum(VK.F1) => result = Key.F1,
-        @intFromEnum(VK.F2) => result = Key.F2,
-        @intFromEnum(VK.F3) => result = Key.F3,
-        @intFromEnum(VK.F4) => result = Key.F4,
-        @intFromEnum(VK.F5) => result = Key.F5,
-        @intFromEnum(VK.F6) => result = Key.F6,
-        @intFromEnum(VK.F7) => result = Key.F7,
-        @intFromEnum(VK.F8) => result = Key.F8,
-        @intFromEnum(VK.F9) => result = Key.F9,
-        @intFromEnum(VK.F10) => result = Key.F10,
-        @intFromEnum(VK.F11) => result = Key.F11,
-        @intFromEnum(VK.F12) => result = Key.F12,
-        @intFromEnum(VK.F13) => result = Key.F13,
-        @intFromEnum(VK.F14) => result = Key.F14,
-        @intFromEnum(VK.F15) => result = Key.F15,
-        @intFromEnum(VK.F16) => result = Key.F16,
-        @intFromEnum(VK.F17) => result = Key.F17,
-        @intFromEnum(VK.F18) => result = Key.F18,
-        @intFromEnum(VK.F19) => result = Key.F19,
-        @intFromEnum(VK.F20) => result = Key.F20,
-        @intFromEnum(VK.F21) => result = Key.F21,
-        @intFromEnum(VK.F22) => result = Key.F22,
-        @intFromEnum(VK.F23) => result = Key.F23,
-        @intFromEnum(VK.F24) => result = Key.F24,
+        @intFromEnum(VK.F1) => result = Key.f(1),
+        @intFromEnum(VK.F2) => result = Key.f(2),
+        @intFromEnum(VK.F3) => result = Key.f(3),
+        @intFromEnum(VK.F4) => result = Key.f(4),
+        @intFromEnum(VK.F5) => result = Key.f(5),
+        @intFromEnum(VK.F6) => result = Key.f(6),
+        @intFromEnum(VK.F7) => result = Key.f(7),
+        @intFromEnum(VK.F8) => result = Key.f(8),
+        @intFromEnum(VK.F9) => result = Key.f(9),
+        @intFromEnum(VK.F10) => result = Key.f(10),
+        @intFromEnum(VK.F11) => result = Key.f(11),
+        @intFromEnum(VK.F12) => result = Key.f(12),
+        @intFromEnum(VK.F13) => result = Key.f(13),
+        @intFromEnum(VK.F14) => result = Key.f(14),
+        @intFromEnum(VK.F15) => result = Key.f(15),
+        @intFromEnum(VK.F16) => result = Key.f(16),
+        @intFromEnum(VK.F17) => result = Key.f(17),
+        @intFromEnum(VK.F18) => result = Key.f(18),
+        @intFromEnum(VK.F19) => result = Key.f(19),
+        @intFromEnum(VK.F20) => result = Key.f(20),
+        @intFromEnum(VK.F21) => result = Key.f(21),
+        @intFromEnum(VK.F22) => result = Key.f(22),
+        @intFromEnum(VK.F23) => result = Key.f(23),
+        @intFromEnum(VK.F24) => result = Key.f(24),
         @intFromEnum(VK.LEFT) => result = Key.Left,
         @intFromEnum(VK.UP) => result = Key.Up,
         @intFromEnum(VK.RIGHT) => result = Key.Right,
         @intFromEnum(VK.DOWN) => result = Key.Down,
-        @intFromEnum(VK.PRIOR) => result = Key.Pageup,
-        @intFromEnum(VK.NEXT) => result = Key.Pagedown,
+        @intFromEnum(VK.PRIOR) => result = Key.PageUp,
+        @intFromEnum(VK.NEXT) => result = Key.PageDown,
         @intFromEnum(VK.HOME) => result = Key.Home,
         @intFromEnum(VK.END) => result = Key.End,
         @intFromEnum(VK.DELETE) => result = Key.Delete,
@@ -404,7 +491,7 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
         return .{ .event = .{
             .key = key,
             .modifiers = modifiers,
-            .pressed = record.pressed(),
+            .kind = if (record.pressed()) .press else .release,
         }};
     }
 

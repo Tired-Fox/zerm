@@ -1,4 +1,5 @@
 const std = @import("std");
+const root = @import("root.zig");
 
 const Utils = switch (@import("builtin").target.os.tag) {
     .windows => struct {
@@ -392,6 +393,27 @@ pub const Screen = union(enum) {
         }
     }
 
+    pub fn isRawModeEnabled() bool {
+        switch(@import("builtin").target.os.tag) {
+            .windows => {
+                const stdin = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch return false;
+
+                var mode = Utils.CONSOLE_MODE{};
+                if (Utils.GetConsoleMode(stdin, &mode) == 0) {
+                    return false;
+                }
+
+                return @as(u32, @bitCast(mode.And(Utils.STDIN_MASK))) == 0;
+            },
+            else => {
+                MODE.mutex.lock();
+                defer MODE.mutex.unlock();
+
+                return MODE.original != null;
+            }
+        }
+    }
+
     /// Scroll the screen up
     pub fn scroll_up(u: u16) @This() {
         return .{ .scroll_up = u };
@@ -588,6 +610,46 @@ pub const Hyperlink = struct {
         try writer.print("\x1b]8;;{s}\x1b\\{s}\x1b]8;;\x1b\\", .{ value.uri, value.label orelse value.uri });
     }
 };
+
+/// Queries the terminal for the cursor position
+///
+/// This will send a `\x1B[6n` sequence to stdout and read stdin
+/// until `\x1b[x;yR` is read.
+pub fn getCursorPos() !std.meta.Tuple(&[_]type{ u16, u16 }) {
+    // Query for cursor position
+    try std.io.getStdOut().writer().print("\x1b[6n", .{});
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    var stream = @import("./event/tty.zig").EventStream.init(arena.allocator());
+    defer stream.deinit();
+
+    if (Screen.isRawModeEnabled()) {
+        // TODO: Timeout
+        while (true) {
+            if (try stream.parseEvent()) |evt| {
+                switch (evt) {
+                    .cursor => |pos| return pos,
+                    else => {}
+                }
+            }
+        }
+    } else {
+        try Screen.enableRawMode();
+        defer Screen.disableRawMode() catch {};
+
+        // TODO: Timeout
+        while (true) {
+            if (try stream.parseEvent()) |evt| {
+                switch (evt) {
+                    .cursor => |pos| return pos,
+                    else => {}
+                }
+            }
+        }
+    }
+}
 
 /// Get the current terminals size { COLS, ROWS }
 pub fn getTermSize() !std.meta.Tuple(&[_]type{ u16, u16 }) {

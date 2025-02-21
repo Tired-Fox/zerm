@@ -4,6 +4,7 @@ const termz = @import("termz");
 const Screen = termz.action.Screen;
 const Cursor = termz.action.Cursor;
 const getTermSize = termz.action.getTermSize;
+const getCursorPos = termz.action.getCursorPos;
 const Hyperlink = termz.action.Hyperlink;
 const Line = termz.action.Line;
 const Capture = termz.action.Capture;
@@ -13,7 +14,7 @@ const Reset = termz.style.Reset;
 
 const Utf8ConsoleOutput = termz.Utf8ConsoleOutput;
 
-const event = termz.event;
+const EventStream = termz.event.EventStream;
 const Key = termz.event.Key;
 
 const execute = termz.execute;
@@ -88,11 +89,13 @@ pub fn main() !void {
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-    const alloc = arena.allocator();
+
+    var stream = EventStream.init(arena.allocator());
+    defer stream.deinit();
 
     while (true) {
-        if (event.pollEvent()) {
-            if (try event.parseEvent(alloc)) |evt| {
+        if (stream.pollEvent()) {
+            if (try stream.parseEvent()) |evt| {
                 switch (evt) {
                     .key => |ke| {
                         std.log.debug("{any}\r", .{ ke });
@@ -104,10 +107,6 @@ pub fn main() !void {
                     },
                     .mouse => |me| {
                         std.log.debug("{any}\r", .{ me });
-                    },
-                    .paste => |content| {
-                        defer alloc.free(content);
-                        std.log.debug("{s}\r", .{content});
                     },
                     else => {
                         std.log.debug("{any}\r", .{ evt });
@@ -134,4 +133,5 @@ pub fn main() !void {
     });
 
     std.log.debug("Terminal Size: {any}", .{ getTermSize() });
+    std.log.debug("Cursor Pos: {any}", .{ getCursorPos() });
 }

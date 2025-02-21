@@ -3,88 +3,70 @@ const builtin = @import("builtin");
 
 /// Representation of keyboard input
 pub const Key = union(enum) {
-    pub const Up: @This() = .{ .up = {} };
-    pub const Down: @This() = .{ .down = {} };
-    pub const Right: @This() = .{ .right = {} };
-    pub const Left: @This() = .{ .left = {} };
     pub const Backspace: @This() = .{ .backspace = {} };
-    pub const Esc: @This() = .{ .esc = {} };
-    pub const End: @This() = .{ .end = {} };
-    pub const Home: @This() = .{ .home = {} };
-    pub const Insert: @This() = .{ .insert = {} };
-    pub const Delete: @This() = .{ .delete = {} };
-    pub const Tab: @This() = .{ .tab = {} };
-    pub const Alt: @This() = .{ .alt = {} };
-    pub const Enter: @This() = .{ .enter = {} };
-    pub const Pageup: @This() = .{ .pageup = {} };
-    pub const Pagedown: @This() = .{ .pagedown = {} };
-    pub const F0: @This() = .{ .f0 = {} };
-    pub const F1: @This() = .{ .f1 = {} };
-    pub const F2: @This() = .{ .f2 = {} };
-    pub const F3: @This() = .{ .f3 = {} };
-    pub const F4: @This() = .{ .f4 = {} };
-    pub const F5: @This() = .{ .f5 = {} };
-    pub const F6: @This() = .{ .f6 = {} };
-    pub const F7: @This() = .{ .f7 = {} };
-    pub const F8: @This() = .{ .f8 = {} };
-    pub const F9: @This() = .{ .f9 = {} };
-    pub const F10: @This() = .{ .f10 = {} };
-    pub const F11: @This() = .{ .f11 = {} };
-    pub const F12: @This() = .{ .f12 = {} };
-    pub const F13: @This() = .{ .f13 = {} };
-    pub const F14: @This() = .{ .f14 = {} };
-    pub const F15: @This() = .{ .f15 = {} };
-    pub const F16: @This() = .{ .f16 = {} };
-    pub const F17: @This() = .{ .f17 = {} };
-    pub const F18: @This() = .{ .f18 = {} };
-    pub const F19: @This() = .{ .f19 = {} };
-    pub const F20: @This() = .{ .f20 = {} };
-    pub const F21: @This() = .{ .f21 = {} };
-    pub const F22: @This() = .{ .f22 = {} };
-    pub const F23: @This() = .{ .f23 = {} };
-    pub const F24: @This() = .{ .f24 = {} };
+    pub const Enter: @This() = .{ .enter = {}};
+    pub const Left: @This() = .{ .left = {}};
+    pub const Right: @This() = .{ .right = {}};
+    pub const Up: @This() = .{ .up = {}};
+    pub const Down: @This() = .{ .down = {}};
+    pub const Home: @This() = .{ .home = {}};
+    pub const End: @This() = .{ .end = {}};
+    pub const PageUp: @This() = .{ .page_up = {}};
+    pub const PageDown: @This() = .{ .page_down = {}};
+    pub const Tab: @This() = .{ .tab = {}};
+    pub const BackTab: @This() = .{ .back_tab = {}};
+    pub const Delete: @This() = .{ .delete = {}};
+    pub const Insert: @This() = .{ .insert = {}};
+    pub const Null: @This() = .{ .null = {}};
+    pub const Esc: @This() = .{ .esc = {}};
+    pub const CapsLock: @This() = .{ .caps_lock = {}};
+    pub const ScrollLock: @This() = .{ .scroll_lock = {}};
+    pub const NumLock: @This() = .{ .num_lock = {}};
+    pub const PrintScreen: @This() = .{ .print_screen = {}};
+    pub const Pause: @This() = .{ .pause = {}};
+    pub const Menu: @This() = .{ .menu = {}};
+    pub const KeypadBegin: @This() = .{ .keypad_begin = {}};
 
+    backspace: void,
+    enter: void,
+    left: void,
+    right: void,
     up: void,
     down: void,
-    right: void,
-    left: void,
-    backspace: void,
-    esc: void,
-    end: void,
     home: void,
-    insert: void,
-    delete: void,
+    end: void,
+    page_up: void,
+    page_down: void,
     tab: void,
-    alt: void,
-    enter: void,
-    pageup: void,
-    pagedown: void,
-    f0: void,
-    f1: void,
-    f2: void,
-    f3: void,
-    f4: void,
-    f5: void,
-    f6: void,
-    f7: void,
-    f8: void,
-    f9: void,
-    f10: void,
-    f11: void,
-    f12: void,
-    f13: void,
-    f14: void,
-    f15: void,
-    f16: void,
-    f17: void,
-    f18: void,
-    f19: void,
-    f20: void,
-    f21: void,
-    f22: void,
-    f23: void,
-    f24: void,
+    back_tab: void,
+    delete: void,
+    insert: void,
+    null: void,
+    esc: void,
+    caps_lock: void,
+    scroll_lock: void,
+    num_lock: void,
+    print_screen: void,
+    pause: void,
+    menu: void,
+    keypad_begin: void,
+
+    f: u8,
     char: u21,
+    media: Media,
+    modifier: Modifier,
+
+    pub fn f(value: u8) @This() {
+        return .{ .f = value };
+    }
+
+    pub fn media(value: Media) @This() {
+        return .{ .media = value };
+    }
+
+    pub fn modifier(value: Modifier) @This() {
+        return .{ .modifier = value };
+    }
 
     pub fn char(value: u21) @This() {
         return .{ .char = value };
@@ -94,28 +76,71 @@ pub const Key = union(enum) {
         switch (current) {
             .char => |a| {
                 switch (other) {
-                    .char => |b| {
-                        return a == b;
-                    },
+                    .char => |b| return a == b,
+                    else => return false,
+                }
+            },
+            .f => |a| {
+                switch (other) {
+                    .f => |b| return a == b,
                     else => return false,
                 }
             },
             else => return @intFromEnum(current) == @intFromEnum(other),
         }
     }
+
+    pub const Media = enum {
+        Play,
+        Pause,
+        PlayPause,
+        Reverse,
+        Stop,
+        FastForward,
+        Rewind,
+        TrackNext,
+        TrackPrevious,
+        Record,
+        LowerVolume,
+        RaiseVolume,
+        MuteVolume,
+    };
+
+    pub const Modifier = enum {
+        LeftShift,
+        LeftControl,
+        LeftAlt,
+        LeftSuper,
+        LeftHyper,
+        LeftMeta,
+        RightShift,
+        RightControl,
+        RightAlt,
+        RightSuper,
+        RightHyper,
+        RightMeta,
+        IsoLevel3Shift,
+        IsoLevel5Shift,
+    };
 };
 
 /// Keyboard modifiers
-pub const Modifiers = packed struct(u3) {
+pub const Modifiers = packed struct(u6) {
     alt: bool = false,
     ctrl: bool = false,
     shift: bool = false,
+    super: bool = false,
+    meta: bool = false,
+    hyper: bool = false,
 
     pub fn merge(a: @This(), b: @This()) @This() {
         return .{
             .alt = a.alt or b.alt,
             .ctrl = a.ctrl or b.ctrl,
             .shift = a.shift or b.shift,
+            .super = a.super or b.super,
+            .meta = a.meta or b.meta,
+            .hyper = a.hyper or b.hyper,
         };
     }
 };
@@ -129,28 +154,6 @@ const Utils = switch (builtin.target.os.tag) {
     },
     else => struct {}
 };
-
-/// Check if the stdin buffer has data to read
-///
-/// @return true if there is data in the buffer
-pub fn pollEvent() bool {
-    switch (builtin.target.os.tag) {
-        .windows => {
-            var count: u32 = 0; 
-            const stdin = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch { return false; };
-            const result = Utils.GetNumberOfConsoleInputEvents(stdin, &count);
-            return result != 0 and count > 0;
-        },
-        else => {
-            var buffer: [1]std.os.linux.pollfd = [_]std.os.linux.pollfd{std.os.linux.pollfd{
-                .fd = std.os.linux.STDIN_FILENO,
-                .events = std.os.linux.POLL.IN,
-                .revents = 0,
-            }};
-            return std.os.linux.poll(&buffer, 1, 1) > 0;
-        },
-    }
-}
 
 /// Read a line from the terminal
 ///
@@ -170,23 +173,62 @@ pub fn readLine(allocator: std.mem.Allocator, max_size: usize) !?[]u8 {
 pub const KeyEvent = struct {
     key: Key,
     modifiers: Modifiers = .{},
-    pressed: bool = true,
+    kind: Kind = .press,
+    state: State = .{},
+
+    pub const Kind = enum {
+        press,
+        release,
+        repeat
+    };
+
+    pub const State = packed struct(u3) {
+        pub const KEYPAD: @This() = .{ .keypad = true };
+        pub const CAPS_LOCK: @This() = .{ .caps_lock = true };
+        pub const NUM_LOCK: @This() = .{ .num_lock = true };
+
+        keypad: bool = false,
+        caps_lock: bool = false,
+        num_lock: bool = false,
+
+        pub fn none(self: *const @This()) bool {
+            return @as(u3, @bitCast(self)) == 0;
+        }
+
+        pub fn Or(self: @This(), other: @This()) @This() {
+            return .{
+                .keypad = self.keypad or other.keypad,
+                .caps_lock = self.caps_lock or other.caps_lock,
+                .num_lock = self.num_lock or other.num_lock,
+            };
+        }
+    };
 };
 
 /// Supported mouse button events
-pub const MouseButton = enum {
+pub const MouseButton = enum(u4) {
     Left,
     Middle,
     Right,
-    ScrollRight,
-    ScrollLeft,
     XButton1,
     XButton2,
+    ScrollRight,
+    ScrollLeft,
     Other
 };
 
 pub const ButtonState = enum(u2) { pressed, released };
 pub const ScrollDirection = enum(u2) { up, down, left, right };
+
+pub const EnhancementFlags = packed struct(u8) {
+    disambiguate_escape_codes: bool = false,
+    report_event_types: bool = false,
+    report_alternate_keys: bool = false,
+    report_all_keys_as_escape_codes: bool = false,
+    // Not yet supported
+    // report_associated_text: bool = false,
+    _m: u4 = 0,
+};
 
 pub const MouseEventKind = union(enum) {
     pub const Move: @This() = .{ .move = {} };
@@ -219,8 +261,8 @@ pub const MouseEventKind = union(enum) {
 pub const MouseEvent = struct {
     col: u16,
     row: u16,
-
     kind: MouseEventKind,
+    modifiers: Modifiers = .{},
 };
 
 pub const Event = union(enum) {
@@ -231,42 +273,12 @@ pub const Event = union(enum) {
     focus: bool,
     /// Requires `Capture.EnableBracketedPaste` to be executed
     paste: []const u8,
+    cursor: std.meta.Tuple(&[_]type { u16, u16 })
 };
 
-/// Parse the next input event.
-///
-/// The User is responsible for freeing memory allocated from a paste event
-///
-/// **WARNING**: This function blocks until the next input event.
-///
-/// **WARNING**: Most of the data is stack allocated, except for the `paste_event`.
-/// This event occurs when the `BracketedPaste` feature is enabled and contains a variable
-/// length allocated string which is the content pasted into the terminal.
-///
-/// # Example
-///
-/// ```zig
-/// var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-/// defer arena.deinit();
-/// const allocator = arena.allocator();
-///
-/// if (try events.parseEvent(alloc)) |event| {
-///     switch (event) {
-///         .paste_event => |content| allocator.free(content),
-///         else => {}
-///     }
-/// }
-/// ```
-pub fn parseEvent(allocator: std.mem.Allocator) !?Event {
-    switch (builtin.os.tag) {
-        .windows => return try @import("./event/windows.zig").parseEvent(allocator),
-        else => return try @import("./event/unix.zig").parseEvent(allocator),
-    }
-}
-
-test "event::pollEvent" {
-    try std.testing.expect(!pollEvent());
-}
+pub const EventStream = 
+    if (builtin.os.tag == .windows) @import("./event/windows.zig").EventStream
+    else @import("./event/tty.zig").EventStream;
 
 test "event::Key::eql" {
     try std.testing.expect(Key.Esc.eql(Key.Esc));
