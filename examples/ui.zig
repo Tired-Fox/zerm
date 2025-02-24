@@ -106,11 +106,9 @@ pub fn main() !void {
 const App = struct {
     message: ?[]const u8 = null,
 
-    pub fn render_with_state(self: *@This(), buffer: *Buffer, rect: Rect, any_state: *anyopaque) !void {
-        const state: *usize = @alignCast(@ptrCast(any_state));
-
+    pub fn render_with_state(self: *@This(), buffer: *Buffer, rect: Rect, state: *usize) !void {
         var block = Block.bordered()
-            .border_set(if (state % 2 == 0) Border.ROUNDED else Border.DOUBLE);
+            .border_set(if (state.* % 2 == 0) Border.ROUNDED else Border.DOUBLE);
 
         try block.render(buffer, rect);
         const inner = block.inner(rect);

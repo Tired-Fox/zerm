@@ -44,9 +44,8 @@ pub const Terminal = struct {
 
     pub fn render_with_state(self: *@This(), component: anytype, state: anytype) !void {
         // Call render function on component(s)
-        const s: *anyopaque = @ptrCast(@constCast(state));
         const area = Rect { .width = self.buffer.width, .height = self.buffer.height };
-        try render_component_with_state(&self.buffer, area, component, s, null);
+        try render_component_with_state(&self.buffer, area, component, state, null);
 
         // Render buffer iterating previous at the same time
         try self.buffer.render(self.source.writer(), self.previous);
@@ -92,7 +91,7 @@ pub const Terminal = struct {
     }
 };
 
-fn render_component_with_state(buffer: *Buffer, rect: Rect, component: anytype, state: *anyopaque, style: ?Style) !void {
+fn render_component_with_state(buffer: *Buffer, rect: Rect, component: anytype, state: anytype, style: ?Style) !void {
     const T = @TypeOf(component);
     const info = @typeInfo(T);
 

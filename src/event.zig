@@ -284,6 +284,53 @@ pub const MouseEvent = struct {
     row: u16,
     kind: MouseEventKind,
     modifiers: Modifiers = .{},
+
+    pub fn matches(self: *const @This(), match: MouseMatch) bool {
+        if (match.alt and !self.modifiers.alt) return false;
+        if (match.ctrl and !self.modifiers.ctrl ) return false;
+        if (match.shift and !self.modifiers.shift) return false;
+        if (match.super and !self.modifiers.super) return false;
+        if (match.meta and !self.modifiers.meta ) return false;
+        if (match.hyper and !self.modifiers.hyper) return false;
+
+        if (match.button) |a| {
+            switch (self.kind) {
+                .down => |b| if (!std.meta.eql(a, b)) return false,
+                .up => |b| if (!std.meta.eql(a, b)) return false,
+                .drag => |b| if (!std.meta.eql(a, b)) return false,
+                else => return false,
+            }
+        }
+
+        if (match.move) {
+            switch (self.kind) {
+                .drag, .move => {},
+                else => return false,
+            }
+        }
+
+        if (match.scroll) |a| {
+            switch (self.kind) {
+                .scroll => |b| if (!std.meta.eql(a, b)) return false,
+                else => return false,
+            }
+        }
+
+        return true;
+    }
+
+    pub const MouseMatch = struct {
+        move: bool = false,
+        button: ?MouseButton = null,
+        scroll: ?ScrollDirection = null,
+
+        alt: bool = false,
+        ctrl: bool = false,
+        shift: bool = false,
+        super: bool = false,
+        meta: bool = false,
+        hyper: bool = false,
+    };
 };
 
 pub const Event = union(enum) {
