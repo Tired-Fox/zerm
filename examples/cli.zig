@@ -15,7 +15,7 @@ const Reset = termz.style.Reset;
 const Utf8ConsoleOutput = termz.Utf8ConsoleOutput;
 
 const EventStream = termz.event.EventStream;
-const Key = termz.event.Key;
+const KeyCode = termz.event.KeyCode;
 
 const execute = termz.execute;
 
@@ -94,23 +94,18 @@ pub fn main() !void {
     defer stream.deinit();
 
     while (true) {
-        if (stream.pollEvent()) {
-            if (try stream.parseEvent()) |evt| {
-                switch (evt) {
-                    .key => |ke| {
-                        std.log.debug("{any}\r", .{ ke });
-                        if (ke.key.eql(Key.char('c')) and ke.modifiers.ctrl) {
-                            break;
-                        } else if (ke.key.eql(Key.char('q'))) {
-                            break;
-                        }
-                    },
-                    .mouse => |me| {
-                        std.log.debug("{any}\r", .{ me });
-                    },
-                    else => {
-                        std.log.debug("{any}\r", .{ evt });
-                    }
+        if (try stream.parseEvent()) |evt| {
+            switch (evt) {
+                .key => |ke| {
+                    std.log.debug("{any}\r", .{ ke });
+                    if (ke.matches(.{ .code = KeyCode.char('c'), .ctrl = true })) break;
+                    if (ke.matches(.{ .code = KeyCode.char('q') })) break;
+                },
+                .mouse => |me| {
+                    std.log.debug("{any}\r", .{ me });
+                },
+                else => {
+                    std.log.debug("{any}\r", .{ evt });
                 }
             }
         }

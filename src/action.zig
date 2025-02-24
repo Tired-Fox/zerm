@@ -314,6 +314,9 @@ pub const Screen = union(enum) {
     erase: Erase,
     /// Change the terminal title
     title: []const u8,
+    /// Resize the screen
+    resize: struct { w: u16, h: u16 },
+
     /// Apply a soft reset to the setup of the screen
     soft_reset: void,
     /// Save the current screen
@@ -434,6 +437,11 @@ pub const Screen = union(enum) {
         return .{ .title = t };
     }
 
+    /// Resize the screen
+    pub fn resize(w: u16, h: u16) @This() {
+        return .{ .resize = .{ .w = w, .h = h }};
+    }
+
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (value) {
             .scroll_up => |u| try writer.print("\x1b[{d}S", .{u}),
@@ -442,6 +450,7 @@ pub const Screen = union(enum) {
 
             .soft_reset => try writer.print("\x1b[!p", .{}),
             .title => |t| try writer.print("\x1b]0;{s}\x07", .{t}),
+            .resize => |r| try writer.print("\x1b[8;{d};{d}t", .{ r.h, r.w }),
 
             .save => try writer.print("\x1b[47h", .{}),
             .restore => try writer.print("\x1b[47l", .{}),

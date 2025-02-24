@@ -5,7 +5,7 @@ const Event = event.Event;
 const KeyEvent = event.KeyEvent;
 const MouseEventKind = event.MouseEventKind;
 const Modifiers = event.Modifiers;
-const Key = event.Key;
+const KeyCode = event.KeyCode;
 
 const BOOL = std.os.windows.BOOL;
 
@@ -385,7 +385,7 @@ fn handleKeyEvent(record: KEY_EVENT_RECORD, buffered_surrogate: *EventStream.Sur
                         return Event {
                             .key = .{
                                 .kind = if (record.pressed()) .press else .release,
-                                .key = Key.char(k),
+                                .code = KeyCode.char(k),
                                 .modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers()
                             }
                         };
@@ -412,7 +412,7 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
         } else {
             return .{
                 .event = .{
-                    .key = Key.char(try record.uChar.value()),
+                    .code = KeyCode.char(try record.uChar.value()),
                     .modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers(),
                     .kind = if (record.pressed()) .press else .release,
                 }
@@ -427,47 +427,47 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
         return null;
     }
 
-    var result: ?Key = null;
+    var result: ?KeyCode = null;
     switch(vkc) {
         @intFromEnum(VK.SHIFT), @intFromEnum(VK.CONTROL), @intFromEnum(VK.MENU) => {},
-        @intFromEnum(VK.BACK) => result = Key.Backspace,
-        @intFromEnum(VK.ESCAPE) => result = Key.Esc,
-        @intFromEnum(VK.RETURN) => result = Key.Enter,
-        @intFromEnum(VK.F1) => result = Key.f(1),
-        @intFromEnum(VK.F2) => result = Key.f(2),
-        @intFromEnum(VK.F3) => result = Key.f(3),
-        @intFromEnum(VK.F4) => result = Key.f(4),
-        @intFromEnum(VK.F5) => result = Key.f(5),
-        @intFromEnum(VK.F6) => result = Key.f(6),
-        @intFromEnum(VK.F7) => result = Key.f(7),
-        @intFromEnum(VK.F8) => result = Key.f(8),
-        @intFromEnum(VK.F9) => result = Key.f(9),
-        @intFromEnum(VK.F10) => result = Key.f(10),
-        @intFromEnum(VK.F11) => result = Key.f(11),
-        @intFromEnum(VK.F12) => result = Key.f(12),
-        @intFromEnum(VK.F13) => result = Key.f(13),
-        @intFromEnum(VK.F14) => result = Key.f(14),
-        @intFromEnum(VK.F15) => result = Key.f(15),
-        @intFromEnum(VK.F16) => result = Key.f(16),
-        @intFromEnum(VK.F17) => result = Key.f(17),
-        @intFromEnum(VK.F18) => result = Key.f(18),
-        @intFromEnum(VK.F19) => result = Key.f(19),
-        @intFromEnum(VK.F20) => result = Key.f(20),
-        @intFromEnum(VK.F21) => result = Key.f(21),
-        @intFromEnum(VK.F22) => result = Key.f(22),
-        @intFromEnum(VK.F23) => result = Key.f(23),
-        @intFromEnum(VK.F24) => result = Key.f(24),
-        @intFromEnum(VK.LEFT) => result = Key.Left,
-        @intFromEnum(VK.UP) => result = Key.Up,
-        @intFromEnum(VK.RIGHT) => result = Key.Right,
-        @intFromEnum(VK.DOWN) => result = Key.Down,
-        @intFromEnum(VK.PRIOR) => result = Key.PageUp,
-        @intFromEnum(VK.NEXT) => result = Key.PageDown,
-        @intFromEnum(VK.HOME) => result = Key.Home,
-        @intFromEnum(VK.END) => result = Key.End,
-        @intFromEnum(VK.DELETE) => result = Key.Delete,
-        @intFromEnum(VK.INSERT) => result = Key.Insert,
-        @intFromEnum(VK.TAB) => result = Key.Tab,
+        @intFromEnum(VK.BACK) => result = KeyCode.Backspace,
+        @intFromEnum(VK.ESCAPE) => result = KeyCode.Esc,
+        @intFromEnum(VK.RETURN) => result = KeyCode.Enter,
+        @intFromEnum(VK.F1) => result = KeyCode.f(1),
+        @intFromEnum(VK.F2) => result = KeyCode.f(2),
+        @intFromEnum(VK.F3) => result = KeyCode.f(3),
+        @intFromEnum(VK.F4) => result = KeyCode.f(4),
+        @intFromEnum(VK.F5) => result = KeyCode.f(5),
+        @intFromEnum(VK.F6) => result = KeyCode.f(6),
+        @intFromEnum(VK.F7) => result = KeyCode.f(7),
+        @intFromEnum(VK.F8) => result = KeyCode.f(8),
+        @intFromEnum(VK.F9) => result = KeyCode.f(9),
+        @intFromEnum(VK.F10) => result = KeyCode.f(10),
+        @intFromEnum(VK.F11) => result = KeyCode.f(11),
+        @intFromEnum(VK.F12) => result = KeyCode.f(12),
+        @intFromEnum(VK.F13) => result = KeyCode.f(13),
+        @intFromEnum(VK.F14) => result = KeyCode.f(14),
+        @intFromEnum(VK.F15) => result = KeyCode.f(15),
+        @intFromEnum(VK.F16) => result = KeyCode.f(16),
+        @intFromEnum(VK.F17) => result = KeyCode.f(17),
+        @intFromEnum(VK.F18) => result = KeyCode.f(18),
+        @intFromEnum(VK.F19) => result = KeyCode.f(19),
+        @intFromEnum(VK.F20) => result = KeyCode.f(20),
+        @intFromEnum(VK.F21) => result = KeyCode.f(21),
+        @intFromEnum(VK.F22) => result = KeyCode.f(22),
+        @intFromEnum(VK.F23) => result = KeyCode.f(23),
+        @intFromEnum(VK.F24) => result = KeyCode.f(24),
+        @intFromEnum(VK.LEFT) => result = KeyCode.Left,
+        @intFromEnum(VK.UP) => result = KeyCode.Up,
+        @intFromEnum(VK.RIGHT) => result = KeyCode.Right,
+        @intFromEnum(VK.DOWN) => result = KeyCode.Down,
+        @intFromEnum(VK.PRIOR) => result = KeyCode.PageUp,
+        @intFromEnum(VK.NEXT) => result = KeyCode.PageDown,
+        @intFromEnum(VK.HOME) => result = KeyCode.Home,
+        @intFromEnum(VK.END) => result = KeyCode.End,
+        @intFromEnum(VK.DELETE) => result = KeyCode.Delete,
+        @intFromEnum(VK.INSERT) => result = KeyCode.Insert,
+        @intFromEnum(VK.TAB) => result = KeyCode.Tab,
         else => {
             if (record.uChar.inRange(0x00, 0x1f)) {
                 // Some key combinations generate either no u_char value or generate control
@@ -477,19 +477,19 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
                 // are handled by their virtual key codes above.
                 // REF: https://github.com/crossterm-rs/crossterm/blob/master/src/event/sys/windows/parse.rs#L143
                 if (getCharForKey(record)) |ch| {
-                    result = Key.char(ch);
+                    result = KeyCode.char(ch);
                 }
             } else if (record.uChar.inRange(0xD800, 0xDFFF)) {
                 return .{ .surrogate = try record.uChar.value() };
             } else {
-                result = Key.char(try record.uChar.value());
+                result = KeyCode.char(try record.uChar.value());
             }
         }
     }
 
     if (result) |key| {
         return .{ .event = .{
-            .key = key,
+            .code = key,
             .modifiers = modifiers,
             .kind = if (record.pressed()) .press else .release,
         }};

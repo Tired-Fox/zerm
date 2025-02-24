@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 /// Representation of keyboard input
-pub const Key = union(enum) {
+pub const KeyCode = union(enum) {
     pub const Backspace: @This() = .{ .backspace = {} };
     pub const Enter: @This() = .{ .enter = {}};
     pub const Left: @This() = .{ .left = {}};
@@ -70,24 +70,6 @@ pub const Key = union(enum) {
 
     pub fn char(value: u21) @This() {
         return .{ .char = value };
-    }
-
-    pub fn eql(current: @This(), other: @This()) bool {
-        switch (current) {
-            .char => |a| {
-                switch (other) {
-                    .char => |b| return a == b,
-                    else => return false,
-                }
-            },
-            .f => |a| {
-                switch (other) {
-                    .f => |b| return a == b,
-                    else => return false,
-                }
-            },
-            else => return @intFromEnum(current) == @intFromEnum(other),
-        }
     }
 
     pub const Media = enum {
@@ -171,10 +153,49 @@ pub fn readLine(allocator: std.mem.Allocator, max_size: usize) !?[]u8 {
 
 /// Keyboard event
 pub const KeyEvent = struct {
-    key: Key,
+    code: KeyCode,
     modifiers: Modifiers = .{},
     kind: Kind = .press,
     state: State = .{},
+
+    pub fn matches(self: *const @This(), match: KeyMatch) bool {
+        if (match.code) |code| {
+            if (!std.meta.eql(code, self.code)) return false;
+        }
+
+        if (match.alt and !self.modifiers.alt) return false;
+        if (match.ctrl and !self.modifiers.ctrl) return false;
+        if (match.shift and !self.modifiers.shift) return false;
+        if (match.super and !self.modifiers.super) return false;
+        if (match.meta and !self.modifiers.meta) return false;
+        if (match.hyper and !self.modifiers.hyper) return false;
+
+        if (match.caps_lock and !self.state.caps_lock) return false;
+        if (match.keypad and !self.state.keypad) return false;
+        if (match.num_lock and !self.state.num_lock) return false;
+
+        if (match.kind) |kind| {
+            if (!std.meta.eql(kind, self.kind)) return false;
+        }
+
+        return true;
+    }
+
+    pub const KeyMatch = struct {
+        code: ?KeyCode = null,
+        kind: ?Kind = null,
+
+        keypad: bool = false,
+        caps_lock: bool = false,
+        num_lock: bool = false,
+
+        alt: bool = false,
+        ctrl: bool = false,
+        shift: bool = false,
+        super: bool = false,
+        meta: bool = false,
+        hyper: bool = false,
+    };
 
     pub const Kind = enum {
         press,
@@ -281,11 +302,11 @@ pub const EventStream =
     else @import("./event/tty.zig").EventStream;
 
 test "event::Key::eql" {
-    try std.testing.expect(Key.Esc.eql(Key.Esc));
-    try std.testing.expect(Key.char('d').eql(Key.char('d')));
-    try std.testing.expect(!Key.char('d').eql(Key.Esc));
+    try std.testing.expect(KeyCode.Esc.eql(KeyCode.Esc));
+    try std.testing.expect(KeyCode.char('d').eql(KeyCode.char('d')));
+    try std.testing.expect(!KeyCode.char('d').eql(KeyCode.Esc));
 }
 
 test "event::Key::char" {
-    try std.testing.expectEqual(Key.char('d'), Key { .char = 'd' });
+    try std.testing.expectEqual(KeyCode.char('d'), KeyCode { .char = 'd' });
 }

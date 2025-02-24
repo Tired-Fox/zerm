@@ -54,8 +54,8 @@ pub fn execute(source: Source, ops: anytype) !void {
     var writer = buffer.writer();
 
     inline for (ops) |op| {
-        const t = @TypeOf(op);
-        switch (t) {
+        const T = @TypeOf(op);
+        switch (T) {
             u8 => try writer.writeByte(op),
             u16 => {
                 var it = std.unicode.Utf16LeIterator.init([1]u16{ op });
@@ -71,7 +71,18 @@ pub fn execute(source: Source, ops: anytype) !void {
                 try writer.writeAll(buff[0..length]);
             },
             else => {
-                try writer.print("{s}", .{ op });
+                switch (@typeInfo(T)) {
+                    .Struct => {
+                        if (@hasDecl(T, "format")) {
+                            try writer.print("{s}", .{ op });
+                        } else {
+                            try writer.print(op[0], op[1]);
+                        }
+                    },
+                    else => {
+                        try writer.print("{s}", .{ op });
+                    }
+                }
             }
         }
     }
