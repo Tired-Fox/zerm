@@ -69,12 +69,15 @@ const Utils = switch (@import("builtin").target.os.tag) {
             .ENABLE_ECHO_INPUT = 1,
             .ENABLE_LINE_INPUT = 1,
             .ENABLE_PROCESSED_INPUT = 1,
-            .ENABLE_QUICK_EDIT_MODE = 1,
         };
 
         pub const STDOUT_MODE: CONSOLE_MODE = .{
             .ENABLE_ECHO_INPUT = 1,
             .ENABLE_PROCESSED_INPUT = 1,
+        };
+
+        pub const MOUSE_MASK: CONSOLE_MODE = .{
+            .ENABLE_QUICK_EDIT_MODE = 1,
         };
 
         pub const MOUSE_MODE: CONSOLE_MODE = .{
@@ -576,7 +579,12 @@ pub const Capture = enum {
                         }
                         MODE.original = mode;
 
-                        if (Utils.SetConsoleMode(stdin, mode.Or(Utils.MOUSE_MODE)) == 0) {
+                        // Disable flags that are in mask and enable
+                        // the others that are in the mode
+                        mode = mode.And(Utils.MOUSE_MASK.Not())
+                            .Or(Utils.MOUSE_MODE);
+
+                        if (Utils.SetConsoleMode(stdin, mode) == 0) {
                             return error.InvalidStdinEntry;
                         }
                     },
