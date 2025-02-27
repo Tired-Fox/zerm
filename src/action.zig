@@ -623,8 +623,15 @@ pub const Hyperlink = struct {
     uri: []const u8,
     label: ?[]const u8 = null,
 
+    pub fn text(self: *const @This()) []const u8 {
+        if (self.label) |label| {
+            return label;
+        }
+        return self.uri;
+    }
+
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("\x1b]8;;{s}\x1b\\{s}\x1b]8;;\x1b\\", .{ value.uri, value.label orelse value.uri });
+        try writer.print("\x1b]8;;{s}\x1b\\{s}\x1b]8;;\x1b\\", .{ value.uri, value.text() });
     }
 };
 
