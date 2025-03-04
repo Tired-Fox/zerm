@@ -60,6 +60,64 @@ pub fn execute(source: Stream, ops: anytype) !void {
     try buffer.flush();
 }
 
+pub const Queue = std.io.BufferedWriter(4096, std.fs.File.Writer);
+
+/// Run each command in the arguments
+///
+/// All commands that print to the `source` will
+/// be buffered and batched all at once.
+///
+/// All commands that run native code will be executed
+/// immediatly.
+///
+/// Supports u8, u16, u21, u32, comptime_int and anything that implements the `format`
+/// function for printing with a writer.
+///
+/// This will run WinApi calls immediatly but hold onto the ansi sequences until `flush`
+/// is called on the returned queue.
+///
+/// # Example
+///
+/// ```zig
+/// pub const CustomType = struct {
+///    pub fn format(
+///       _: @This(),
+///       comptime _: []const u8,
+///       _: std.fmt.FormatOptions,
+///       writer: anytype
+///    ) !void {
+///         try writer.print("CustomType");
+///    }
+/// }
+///
+/// const q = queue(.Stdout, .{
+///     Style { .fg = Color.Green },
+///     '✓',
+///     Reset.fg(),
+///     ' ',
+///     CustomType{},
+/// });
+///
+/// // ... Additional logic
+///
+/// try q.flush();
+/// ```
+pub fn queue(source: Stream, ops: anytype) !Queue {
+    const output = switch (source) {
+        .Stdout => std.io.getStdOut().writer(),
+        .Stderr => std.io.getStdErr().writer(),
+    };
+
+    var buffer = std.io.bufferedWriter(output);
+    const writer = buffer.writer();
+
+    inline for (ops) |op| {
+        try writeOp(op, writer);
+    }
+
+    return buffer;
+}
+
 pub fn writeOp(op: anytype, writer: anytype) !void {
     const T = @TypeOf(op);
     switch (T) {
