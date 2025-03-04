@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Style = @import("termz").style.Style;
 const Cursor = @import("termz").action.Cursor;
-const Source = @import("termz").Source;
+const Stream = @import("termz").Stream;
 
 const getTermSize = @import("termz").action.getTermSize;
 
@@ -13,7 +13,7 @@ pub const Terminal = struct {
 
     previous: ?[]Cell = null,
 
-    pub fn init(allo: std.mem.Allocator, source: Source) !@This() {
+    pub fn init(allo: std.mem.Allocator, source: Stream) !@This() {
         // _ = source;
         const cols, const rows = try getTermSize();
         return .{

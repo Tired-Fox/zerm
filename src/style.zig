@@ -1,4 +1,7 @@
 const std = @import("std");
+const Stream = @import("root.zig").Stream;
+const writeOp = @import("root.zig").writeOp;
+const onCached = @import("tty.zig").onCached;
 
 /// XTerm named colors
 pub const XTerm = enum(u8) {
@@ -270,6 +273,8 @@ pub const Style = struct {
     /// Swap foreground and background colors
     reverse: bool = false,
 
+    supports_color: bool = false,
+
     fg: ?Color = null,
     bg: ?Color = null,
 
@@ -469,6 +474,70 @@ pub const Reset = struct {
         }
     }
 };
+
+pub fn Styled(T: type) type {
+    return struct{
+        value: T,
+        style: Style,
+
+        pub fn init(value: T, style: Style) @This() {
+            return .{
+                .value = value,
+                .style = style,
+            };
+        }
+
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.print("{s}", .{ self.style });
+            try writeOp(self.value, writer);
+            try writer.print("{s}", .{ self.style.reset() });
+        }
+    };
+}
+
+pub fn styled(value: anytype, style: Style) Styled(@TypeOf(value)) {
+    return .{
+        .value = value,
+        .style = style,
+    };
+}
+
+pub fn SupportsColor(T: type) type {
+    return struct{
+        value: T,
+        stream: Stream,
+        style: Style,
+
+        pub fn init(stream: Stream, value: T, style: Style) @This() {
+            return .{
+                .value = value,
+                .style = style,
+                .stream = stream,
+            };
+        }
+
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            if (onCached(self.stream)) |cached| {
+                if (cached.has_basic) {
+                    try writer.print("{s}", .{ self.style });
+                    try writeOp(self.value, writer);
+                    try writer.print("{s}", .{ self.style.reset() });
+                    return;
+                }
+            }
+
+            try writeOp(self.value, writer);
+        }
+    };
+}
+
+pub fn ifSupportsColor(stream: Stream, value: anytype, style: Style) SupportsColor(@TypeOf(value)) {
+    return .{
+        .value = value,
+        .style = style,
+        .stream = stream,
+    };
+}
 
 test "style::Color::format" {
     var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Color.Black });

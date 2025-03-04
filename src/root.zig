@@ -6,7 +6,7 @@ pub const action = @import("action.zig");
 pub const event = @import("event.zig");
 
 /// Target where printed commands are written
-pub const Source = enum {
+pub const Stream = enum(u2) {
     Stdout,
     Stderr,
 };
@@ -44,50 +44,54 @@ pub const Source = enum {
 ///     CustomType{},
 /// });
 /// ```
-pub fn execute(source: Source, ops: anytype) !void {
+pub fn execute(source: Stream, ops: anytype) !void {
     const output = switch (source) {
         .Stdout => std.io.getStdOut().writer(),
         .Stderr => std.io.getStdErr().writer(),
     };
 
     var buffer = std.io.bufferedWriter(output);
-    var writer = buffer.writer();
+    const writer = buffer.writer();
 
     inline for (ops) |op| {
-        const T = @TypeOf(op);
-        switch (T) {
-            u8 => try writer.writeByte(op),
-            u16 => {
-                var it = std.unicode.Utf16LeIterator.init([1]u16{ op });
-                while (try it.nextCodepoint()) |cp| {
-                    var buff: [4]u8 = undefined;
-                    const length = try std.unicode.utf8Encode(cp, &buff);
-                    try writer.writeAll(buff[0..length]);
-                }
-            },
-            u21, u32, comptime_int => {
-                var buff: [4]u8 = [_]u8{0}**4;
-                const length = try std.unicode.utf8Encode(@intCast(op), &buff);
+        try writeOp(op, writer);
+    }
+
+    try buffer.flush();
+}
+
+pub fn writeOp(op: anytype, writer: anytype) !void {
+    const T = @TypeOf(op);
+    switch (T) {
+        u8 => try writer.writeByte(op),
+        u16 => {
+            var it = std.unicode.Utf16LeIterator.init([1]u16{ op });
+            while (try it.nextCodepoint()) |cp| {
+                var buff: [4]u8 = undefined;
+                const length = try std.unicode.utf8Encode(cp, &buff);
                 try writer.writeAll(buff[0..length]);
-            },
-            else => {
-                switch (@typeInfo(T)) {
-                    .Struct => {
-                        if (@hasDecl(T, "format")) {
-                            try writer.print("{s}", .{ op });
-                        } else {
-                            try writer.print(op[0], op[1]);
-                        }
-                    },
-                    else => {
+            }
+        },
+        u21, u32, comptime_int => {
+            var buff: [4]u8 = [_]u8{0}**4;
+            const length = try std.unicode.utf8Encode(@intCast(op), &buff);
+            try writer.writeAll(buff[0..length]);
+        },
+        else => {
+            switch (@typeInfo(T)) {
+                .Struct => {
+                    if (@hasDecl(T, "format")) {
                         try writer.print("{s}", .{ op });
+                    } else {
+                        try writer.print(op[0], op[1]);
                     }
+                },
+                else => {
+                    try writer.print("{s}", .{ op });
                 }
             }
         }
     }
-
-    try buffer.flush();
 }
 
 /// This is a work around on `windows` since windows likes `UTF16` encoding.
