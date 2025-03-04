@@ -9,6 +9,13 @@ pub const event = @import("event.zig");
 pub const Stream = enum(u2) {
     Stdout,
     Stderr,
+
+    pub fn isTty(self: *const @This()) bool {
+        return switch (self) {
+            .Stdout => std.io.getStdOut().isTty(),
+            .Stderr => std.io.getStdErr().isTty(),
+        };
+    }
 };
 
 /// Run each command in the arguments

@@ -73,13 +73,6 @@ pub const ColorLevel = struct {
     }
 };
 
-fn isTty(stream: Stream) bool {
-    return switch (stream) {
-        .Stdout => std.io.getStdOut().isTty(),
-        .Stderr => std.io.getStdErr().isTty(),
-    };
-}
-
 fn varEql(variable: ?[]const u8, value: []const u8) bool {
     const env = variable orelse return false;
     return std.mem.eql(u8, env, value);
@@ -101,7 +94,7 @@ fn supportsColor(stream: Stream) usize {
     const force_color = envForceColor(map.get("FORCE_COLOR"), map.get("CLICOLOR_FORCE")) catch 0;
     if (force_color > 0) return force_color;
 
-    if (envNoColor(map.get("NO_COLOR")) or varEql(map.get("TERM"), "dumb") or !(isTty(stream) or varNotEql(map.get("IGNORE_IS_TERMINAL"), "0"))) {
+    if (envNoColor(map.get("NO_COLOR")) or varEql(map.get("TERM"), "dumb") or !(stream.isTty() or varNotEql(map.get("IGNORE_IS_TERMINAL"), "0"))) {
         return 0;
     }
 
