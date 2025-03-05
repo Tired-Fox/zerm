@@ -559,8 +559,13 @@ pub const Reset = struct {
                 at_least_one = true;
             }
 
-            if (self.mod.underline != .none or self.mod.overline) {
+            if (self.mod.underline != .none) {
                 try writer.print("{s}24", .{if (at_least_one) ";" else ""});
+                at_least_one = true;
+            }
+
+            if (self.mod.overline) {
+                try writer.print("{s}55", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
