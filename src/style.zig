@@ -351,7 +351,7 @@ pub const Style = struct {
     /// Generate the representation that will reset the styling
     pub fn reset(self: @This()) Reset {
         return .{
-            .mod = self.mod.Not(),
+            .mod = self.mod,
             .fg = self.fg != null,
             .bg = self.bg != null,
             .hyperlink = self.hyperlink != null,
