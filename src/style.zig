@@ -303,6 +303,13 @@ pub const Style = struct {
     /// this style is applied too.
     hyperlink: ?[]const u8 = null,
 
+    pub fn eql(self: *const @This(), other: *const @This()) bool {
+        return std.meta.eql(self.mod, other.mod)
+            and std.meta.eql(self.fg, other.fg)
+            and std.meta.eql(self.bg, other.bg)
+            and if (self.hyperlink != null and other.hyperlink != null) std.mem.eql(u8, self.hyperlink.?, other.hyperlink.?) else false;
+    }
+
     pub fn new() @This() {
         return .{};
     }
@@ -347,6 +354,29 @@ pub const Style = struct {
             .mod = self.mod.Not(),
             .fg = self.fg != null,
             .bg = self.bg != null,
+            .hyperlink = self.hyperlink != null,
+        };
+    }
+
+    /// Merge two styles together where `other` will replace `self`
+    /// where the values overlap.
+    pub fn And(self: *const @This(), other: *const @This()) Style {
+        return . {
+            .mod = self.mod.And(&other.mod),
+            .fg = other.fg orelse self.fg,
+            .bg = other.bg orelse self.bg, 
+            .hyperlink = other.hyperlink orelse self.hyperlink,
+        };
+    }
+
+    /// Merge two styles together where `other` will **NOT** replace `self`
+    /// where the values overlap.
+    pub fn Or(self: *const @This(), other: *const @This()) Style {
+        return . {
+            .mod = self.mod.Or(&other.mod),
+            .fg = self.fg orelse other.fg,
+            .bg = self.bg orelse other.bg, 
+            .hyperlink = self.hyperlink orelse other.hyperlink,
         };
     }
 
