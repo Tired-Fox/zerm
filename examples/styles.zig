@@ -1,9 +1,14 @@
 const std = @import("std");
 const termz = @import("termz");
 
-pub fn main() !void {
-    const underline = termz.style.Style.underline();
-    const bold = termz.style.Style.bold();
+const Style = termz.style.Style;
+const Modifiers = termz.style.Modifiers;
+const Reset = termz.style.Reset;
+const Color = termz.style.Color;
 
-    std.debug.print("{any}", .{ underline.eql(&bold) });
+pub fn main() !void {
+    const style = Style { .mod = .{ .underline = .double, .overline = true } };
+    std.debug.print("\x1b[51mHello, world\x1b[0m", .{
+        style
+    });
 }

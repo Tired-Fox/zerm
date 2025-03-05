@@ -262,9 +262,10 @@ pub const Color = union(enum) {
     }
 };
 
-pub const Modifiers = packed struct(u6) {
+pub const Modifiers = packed struct(u8) {
     bold: bool = false,
-    underline: bool = false,
+    underline: Underline = .none,
+    overline: bool = false,
     italic: bool = false,
     blink: bool = false,
     /// Strikethrough
@@ -272,24 +273,30 @@ pub const Modifiers = packed struct(u6) {
     /// Swap foreground and background colors
     reverse: bool = false,
 
+    pub const Underline = enum(u2) {
+        none = 0,
+        single = 1,
+        double = 2,
+    };
+
     pub fn empty(self: *const @This()) bool {
-        return @as(u6, @bitCast(self.*)) == 0;
+        return @as(u8, @bitCast(self.*)) == 0;
     }
 
     pub fn Not(self: *const @This()) Modifiers {
-        return @bitCast(~@as(u6, @bitCast(self.*))); 
+        return @bitCast(~@as(u8, @bitCast(self.*))); 
     }
 
     pub fn And(self: *const @This(), other: *const @This()) Modifiers {
-        return @bitCast(@as(u6, @bitCast(self.*)) & @as(u6, @bitCast(other.*))); 
+        return @bitCast(@as(u8, @bitCast(self.*)) & @as(u8, @bitCast(other.*))); 
     }
 
     pub fn Or(self: *const @This(), other: *const @This()) Modifiers {
-        return @bitCast(@as(u6, @bitCast(self.*)) | @as(u6, @bitCast(other.*))); 
+        return @bitCast(@as(u8, @bitCast(self.*)) | @as(u8, @bitCast(other.*))); 
     }
 
     pub fn Xor(self: *const @This(), other: *const @This()) Modifiers {
-        return @bitCast(@as(u6, @bitCast(self.*)) ^ @as(u6, @bitCast(other.*))); 
+        return @bitCast(@as(u8, @bitCast(self.*)) ^ @as(u8, @bitCast(other.*))); 
     }
 };
 
@@ -298,6 +305,7 @@ pub const Style = struct {
     mod: Modifiers = .{},
     fg: ?Color = null,
     bg: ?Color = null,
+    underline_color: ?Color = null,
 
     /// Apply a clickable hyperlink to the text that
     /// this style is applied too.
@@ -307,6 +315,7 @@ pub const Style = struct {
         return std.meta.eql(self.mod, other.mod)
             and std.meta.eql(self.fg, other.fg)
             and std.meta.eql(self.bg, other.bg)
+            and std.meta.eql(self.underline_color, other.underline_color)
             and if (self.hyperlink != null and other.hyperlink != null) std.mem.eql(u8, self.hyperlink.?, other.hyperlink.?) else false;
     }
 
@@ -327,8 +336,16 @@ pub const Style = struct {
         return .{ .mod = .{ .italic = true }};
     }
 
-    pub fn underline() @This() {
-        return .{ .mod = .{ .underline = true }};
+    pub fn underline(kind: Modifiers.Underline) @This() {
+        return .{ .mod = .{ .underline = kind }};
+    }
+
+    pub fn underlineColor(color: Color) @This() {
+        return .{ .underline_color = color };
+    }
+
+    pub fn overline() @This() {
+        return .{ .mod = .{ .overline = true }};
     }
 
     pub fn blink() @This() {
@@ -354,6 +371,7 @@ pub const Style = struct {
             .mod = self.mod,
             .fg = self.fg != null,
             .bg = self.bg != null,
+            .underline_color = self.underline_color != null,
             .hyperlink = self.hyperlink != null,
         };
     }
@@ -365,6 +383,7 @@ pub const Style = struct {
             .mod = self.mod.And(&other.mod),
             .fg = other.fg orelse self.fg,
             .bg = other.bg orelse self.bg, 
+            .underline_color = other.underline_color orelse self.underline_color,
             .hyperlink = other.hyperlink orelse self.hyperlink,
         };
     }
@@ -376,6 +395,7 @@ pub const Style = struct {
             .mod = self.mod.Or(&other.mod),
             .fg = self.fg orelse other.fg,
             .bg = self.bg orelse other.bg, 
+            .underline_color = self.underline_color orelse other.underline_color,
             .hyperlink = self.hyperlink orelse other.hyperlink,
         };
     }
@@ -400,8 +420,20 @@ pub const Style = struct {
                 at_least_one = true;
             }
 
-            if (self.mod.underline) {
-                try writer.print("{s}4", .{if (at_least_one) ";" else ""});
+            switch (self.mod.underline) {
+                .single => {
+                    try writer.print("{s}4", .{if (at_least_one) ";" else ""});
+                    at_least_one = true;
+                },
+                .double => {
+                    try writer.print("{s}21", .{if (at_least_one) ";" else ""});
+                    at_least_one = true;
+                },
+                else => {}
+            }
+
+            if (self.mod.overline) {
+                try writer.print("{s}53", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
@@ -412,6 +444,24 @@ pub const Style = struct {
 
             if (self.mod.reverse) {
                 try writer.print("{s}7", .{if (at_least_one) ";" else ""});
+                at_least_one = true;
+            }
+
+            if (self.underline_color) |_uc| {
+                if (at_least_one) try writer.print(";", .{});
+                switch (_uc) {
+                    .black => try writer.print("58;5;0", .{}),
+                    .red => try writer.print("58;5;1", .{}),
+                    .green => try writer.print("58;5;2", .{}),
+                    .yellow => try writer.print("58;5;3", .{}),
+                    .blue => try writer.print("58;5;4", .{}),
+                    .magenta => try writer.print("58;5;5", .{}),
+                    .cyan => try writer.print("58;5;6", .{}),
+                    .white => try writer.print("58;5;7", .{}),
+                    .default => try writer.print("59", .{}),
+                    .xterm => |xterm| try writer.print("58;5;{d}", .{ @intFromEnum(xterm) }),
+                    .rgb => |rgb| try writer.print("58;2;{d};{d};{d}", .{ rgb[0], rgb[1], rgb[2] }),
+                }
                 at_least_one = true;
             }
 
@@ -438,6 +488,7 @@ pub const Reset = struct {
     mod: Modifiers = .{},
     fg: bool = false,
     bg: bool = false,
+    underline_color: bool = false,
     hyperlink: bool = false,
 
     pub fn new() @This() {
@@ -457,7 +508,11 @@ pub const Reset = struct {
     }
 
     pub fn underline() @This() {
-        return .{ .mod = .{ .underline = true }};
+        return .{ .mod = .{ .overline = true }};
+    }
+
+    pub fn overline() @This() {
+        return .{ .mod = .{ .overline = true }};
     }
 
     pub fn blink() @This() {
@@ -476,12 +531,16 @@ pub const Reset = struct {
         return .{ .bg = true };
     }
 
+    pub fn underlineColor() @This() {
+        return .{ .underline_color = true };
+    }
+
     pub fn hyperlink() @This() {
         return .{ .hyperlink = true };
     }
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (!self.mod.empty() or self.fg or self.bg) {
+        if (!self.mod.empty() or self.fg or self.bg or self.underline_color) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
 
@@ -500,7 +559,7 @@ pub const Reset = struct {
                 at_least_one = true;
             }
 
-            if (self.mod.underline) {
+            if (self.mod.underline != .none or self.mod.overline) {
                 try writer.print("{s}24", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
@@ -512,6 +571,11 @@ pub const Reset = struct {
 
             if (self.mod.reverse) {
                 try writer.print("{s}27", .{if (at_least_one) ";" else ""});
+                at_least_one = true;
+            }
+
+            if (self.underline_color) {
+                try writer.print("{s}59", .{ if (at_least_one) ";" else "" });
                 at_least_one = true;
             }
 
