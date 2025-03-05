@@ -619,22 +619,6 @@ pub const Capture = enum {
     }
 };
 
-pub const Hyperlink = struct {
-    uri: []const u8,
-    label: ?[]const u8 = null,
-
-    pub fn text(self: *const @This()) []const u8 {
-        if (self.label) |label| {
-            return label;
-        }
-        return self.uri;
-    }
-
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("\x1b]8;;{s}\x1b\\{s}\x1b]8;;\x1b\\", .{ value.uri, value.text() });
-    }
-};
-
 /// Queries the terminal for the cursor position
 ///
 /// This will send a `\x1B[6n` sequence to stdout and read stdin
@@ -721,12 +705,6 @@ pub fn getTermSizePixels() !std.meta.Tuple(&[_]type{ u16, u16 }) {
             return .{ size.ws_xpixel, size.ws_ypixel };
         },
     }
-}
-
-test "action::Url::format" {
-    const format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Hyperlink { .uri = "https://example.com", .label = "Example" } });
-    try std.testing.expect(std.mem.eql(u8, format, "\x1b]8;;https://example.com\x1b\\Example\x1b]8;;\x1b\\"));
-    std.testing.allocator.free(format);
 }
 
 test "action::Capture::format" {

@@ -262,8 +262,7 @@ pub const Color = union(enum) {
     }
 };
 
-/// Styling for ansi text
-pub const Style = struct {
+pub const Modifiers = packed struct(u6) {
     bold: bool = false,
     underline: bool = false,
     italic: bool = false,
@@ -273,39 +272,65 @@ pub const Style = struct {
     /// Swap foreground and background colors
     reverse: bool = false,
 
-    supports_color: bool = false,
+    pub fn empty(self: *const @This()) bool {
+        return @as(u6, @bitCast(self.*)) == 0;
+    }
 
+    pub fn Not(self: *const @This()) Modifiers {
+        return @bitCast(~@as(u6, @bitCast(self.*))); 
+    }
+
+    pub fn And(self: *const @This(), other: *const @This()) Modifiers {
+        return @bitCast(@as(u6, @bitCast(self.*)) & @as(u6, @bitCast(other.*))); 
+    }
+
+    pub fn Or(self: *const @This(), other: *const @This()) Modifiers {
+        return @bitCast(@as(u6, @bitCast(self.*)) | @as(u6, @bitCast(other.*))); 
+    }
+
+    pub fn Xor(self: *const @This(), other: *const @This()) Modifiers {
+        return @bitCast(@as(u6, @bitCast(self.*)) ^ @as(u6, @bitCast(other.*))); 
+    }
+};
+
+/// Styling for ansi text
+pub const Style = struct {
+    mod: Modifiers = .{},
     fg: ?Color = null,
     bg: ?Color = null,
+
+    /// Apply a clickable hyperlink to the text that
+    /// this style is applied too.
+    hyperlink: ?[]const u8 = null,
 
     pub fn new() @This() {
         return .{};
     }
 
     pub fn bold() @This() {
-        return .{ .bold = true };
+        return .{ .mod = .{ .bold = true } };
     }
 
     /// Strikethrough
     pub fn crossed() @This() {
-        return .{ .crossed = true };
+        return .{ .mod = .{ .crossed = true }};
     }
 
     pub fn italic() @This() {
-        return .{ .italic = true };
+        return .{ .mod = .{ .italic = true }};
     }
 
     pub fn underline() @This() {
-        return .{ .underline = true };
+        return .{ .mod = .{ .underline = true }};
     }
 
     pub fn blink() @This() {
-        return .{ .blink = true };
+        return .{ .mod = .{ .blink = true }};
     }
 
     /// Swap foreground and background colors
     pub fn reverse() @This() {
-        return .{ .reverse = true };
+        return .{ .mod = .{ .reverse = true }};
     }
 
     pub fn fg(color: Color) @This() {
@@ -319,48 +344,43 @@ pub const Style = struct {
     /// Generate the representation that will reset the styling
     pub fn reset(self: @This()) Reset {
         return .{
-            .bold = self.bold,
-            .italic = self.italic,
-            .underline = self.underline,
-            .blink = self.blink,
-            .crossed = self.crossed,
-            .reverse = self.reverse,
+            .mod = self.mod.Not(),
             .fg = self.fg != null,
             .bg = self.bg != null,
         };
     }
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (self.bold or self.italic or self.underline or self.blink or self.reverse or self.fg != null or self.bg != null) {
+        if (!self.mod.empty() or self.fg != null or self.bg != null) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
 
-            if (self.bold) {
+            if (self.mod.bold) {
                 try writer.print("{s}1", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.italic) {
+            if (self.mod.italic) {
                 try writer.print("{s}3", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.crossed) {
+            if (self.mod.crossed) {
                 try writer.print("{s}9", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.underline) {
+            if (self.mod.underline) {
                 try writer.print("{s}4", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.blink) {
+            if (self.mod.blink) {
                 try writer.print("{s}5", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.reverse) {
+            if (self.mod.reverse) {
                 try writer.print("{s}7", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
@@ -376,46 +396,46 @@ pub const Style = struct {
             }
             try writer.print("m", .{});
         }
+
+        if (self.hyperlink) |_hl| {
+            try writer.print("\x1b]8;;{s}\x1b\\", .{ _hl });
+        }
     }
 };
 
 /// Representation of sequences to reset ansi styling
 pub const Reset = struct {
-    bold: bool = false,
-    underline: bool = false,
-    italic: bool = false,
-    blink: bool = false,
-    crossed: bool = false,
-    reverse: bool = false,
+    mod: Modifiers = .{},
     fg: bool = false,
     bg: bool = false,
+    hyperlink: bool = false,
 
     pub fn new() @This() {
         return .{};
     }
 
     pub fn bold() @This() {
-        return .{ .bold = true };
+        return .{ .mod = .{ .bold = true }};
     }
 
     pub fn crossed() @This() {
-        return .{ .crossed = true };
+        return .{ .mod = .{ .crossed = true }};
     }
 
     pub fn italic() @This() {
-        return .{ .italic = true };
+        return .{ .mod = .{ .italic = true }};
     }
 
     pub fn underline() @This() {
-        return .{ .underline = true };
+        return .{ .mod = .{ .underline = true }};
     }
 
     pub fn blink() @This() {
-        return .{ .blink = true };
+        return .{ .mod = .{ .blink = true }};
     }
 
     pub fn reverse() @This() {
-        return .{ .reverse = true };
+        return .{ .mod = .{ .reverse = true }};
     }
 
     pub fn fg() @This() {
@@ -426,37 +446,41 @@ pub const Reset = struct {
         return .{ .bg = true };
     }
 
+    pub fn hyperlink() @This() {
+        return .{ .hyperlink = true };
+    }
+
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (self.bold or self.italic or self.underline or self.blink or self.reverse or self.fg or self.bg) {
+        if (!self.mod.empty() or self.fg or self.bg) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
 
-            if (self.bold) {
+            if (self.mod.bold) {
                 try writer.print("{s}22", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.italic) {
+            if (self.mod.italic) {
                 try writer.print("{s}23", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.crossed) {
+            if (self.mod.crossed) {
                 try writer.print("{s}29", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.underline) {
+            if (self.mod.underline) {
                 try writer.print("{s}24", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.blink) {
+            if (self.mod.blink) {
                 try writer.print("{s}25", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
 
-            if (self.reverse) {
+            if (self.mod.reverse) {
                 try writer.print("{s}27", .{if (at_least_one) ";" else ""});
                 at_least_one = true;
             }
@@ -471,6 +495,10 @@ pub const Reset = struct {
                 at_least_one = true;
             }
             try writer.print("m", .{});
+        }
+
+        if (self.hyperlink) {
+            try writer.print("\x1b]8;;\x1b\\", .{});
         }
     }
 };
@@ -567,8 +595,9 @@ test "style::Style::format" {
         .reverse = true,
         .fg = Color.Red,
         .bg = Color.Blue,
+        .hyperlink = "https://example.com"
     } });
-    try std.testing.expect(std.mem.eql(u8, format, "\x1b[1;3;9;4;5;7;31;44m"));
+    try std.testing.expect(std.mem.eql(u8, format, "\x1b[1;3;9;4;5;7;31;44m\x1b]8;;https://example.com\x1b\\"));
     std.testing.allocator.free(format);
 }
 

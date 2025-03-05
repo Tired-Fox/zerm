@@ -5,7 +5,6 @@ const Screen = termz.action.Screen;
 const Cursor = termz.action.Cursor;
 const getTermSize = termz.action.getTermSize;
 const getCursorPos = termz.action.getCursorPos;
-const Hyperlink = termz.action.Hyperlink;
 const Line = termz.action.Line;
 const Capture = termz.action.Capture;
 const Style = termz.style.Style;
@@ -121,9 +120,9 @@ pub fn main() !void {
     try Screen.disableRawMode();
 
     try execute(.Stdout, .{
-        Style { .underline = true },
-        Hyperlink { .uri = "https://example.com", .label = "Example" },
-        Reset.underline(),
+        Style { .mod = .{ .underline = true }, .hyperlink = "https://example.com" },
+        "Example",
+        Reset { .mod = .{ .underline = true }, .hyperlink = true },
         '\n',
     });
 
