@@ -3,106 +3,106 @@ const builtin = @import("builtin");
 
 /// Representation of keyboard input
 pub const KeyCode = union(enum) {
-    pub const Backspace: @This() = .{ .backspace = {} };
-    pub const Enter: @This() = .{ .enter = {}};
-    pub const Left: @This() = .{ .left = {}};
-    pub const Right: @This() = .{ .right = {}};
-    pub const Up: @This() = .{ .up = {}};
-    pub const Down: @This() = .{ .down = {}};
-    pub const Home: @This() = .{ .home = {}};
-    pub const End: @This() = .{ .end = {}};
-    pub const PageUp: @This() = .{ .page_up = {}};
-    pub const PageDown: @This() = .{ .page_down = {}};
-    pub const Tab: @This() = .{ .tab = {}};
-    pub const BackTab: @This() = .{ .back_tab = {}};
-    pub const Delete: @This() = .{ .delete = {}};
-    pub const Insert: @This() = .{ .insert = {}};
-    pub const Null: @This() = .{ .null = {}};
-    pub const Esc: @This() = .{ .esc = {}};
-    pub const CapsLock: @This() = .{ .caps_lock = {}};
-    pub const ScrollLock: @This() = .{ .scroll_lock = {}};
-    pub const NumLock: @This() = .{ .num_lock = {}};
-    pub const PrintScreen: @This() = .{ .print_screen = {}};
-    pub const Pause: @This() = .{ .pause = {}};
-    pub const Menu: @This() = .{ .menu = {}};
-    pub const KeypadBegin: @This() = .{ .keypad_begin = {}};
+    pub const backspace: @This() = .{ ._backspace = {} };
+    pub const enter: @This() = .{ ._enter = {}};
+    pub const left: @This() = .{ ._left = {}};
+    pub const right: @This() = .{ ._right = {}};
+    pub const up: @This() = .{ ._up = {}};
+    pub const down: @This() = .{ ._down = {}};
+    pub const home: @This() = .{ ._home = {}};
+    pub const end: @This() = .{ ._end = {}};
+    pub const page_up: @This() = .{ ._page_up = {}};
+    pub const page_down: @This() = .{ ._page_down = {}};
+    pub const tab: @This() = .{ ._tab = {}};
+    pub const back_tab: @This() = .{ ._back_tab = {}};
+    pub const delete: @This() = .{ ._delete = {}};
+    pub const insert: @This() = .{ ._insert = {}};
+    pub const @"null": @This() = .{ ._null = {}};
+    pub const esc: @This() = .{ ._esc = {}};
+    pub const caps_lock: @This() = .{ ._caps_lock = {}};
+    pub const scroll_lock: @This() = .{ ._scroll_lock = {}};
+    pub const num_lock: @This() = .{ ._num_lock = {}};
+    pub const print_screen: @This() = .{ ._print_screen = {}};
+    pub const pause: @This() = .{ ._pause = {}};
+    pub const menu: @This() = .{ ._menu = {}};
+    pub const keypad_begin: @This() = .{ ._keypad_begin = {}};
 
-    backspace: void,
-    enter: void,
-    left: void,
-    right: void,
-    up: void,
-    down: void,
-    home: void,
-    end: void,
-    page_up: void,
-    page_down: void,
-    tab: void,
-    back_tab: void,
-    delete: void,
-    insert: void,
-    null: void,
-    esc: void,
-    caps_lock: void,
-    scroll_lock: void,
-    num_lock: void,
-    print_screen: void,
-    pause: void,
-    menu: void,
-    keypad_begin: void,
+    _backspace,
+    _enter,
+    _left,
+    _right,
+    _up,
+    _down,
+    _home,
+    _end,
+    _page_up,
+    _page_down,
+    _tab,
+    _back_tab,
+    _delete,
+    _insert,
+    _null,
+    _esc,
+    _caps_lock,
+    _scroll_lock,
+    _num_lock,
+    _print_screen,
+    _pause,
+    _menu,
+    _keypad_begin,
 
-    f: u8,
-    char: u21,
-    media: Media,
-    modifier: Modifier,
+    _f: u8,
+    _char: u21,
+    _media: Media,
+    _modifier: Modifier,
 
     pub fn f(value: u8) @This() {
-        return .{ .f = value };
+        return .{ ._f = value };
     }
 
     pub fn media(value: Media) @This() {
-        return .{ .media = value };
+        return .{ ._media = value };
     }
 
     pub fn modifier(value: Modifier) @This() {
-        return .{ .modifier = value };
+        return .{ ._modifier = value };
     }
 
     pub fn char(value: u21) @This() {
-        return .{ .char = value };
+        return .{ ._char = value };
     }
 
     pub const Media = enum {
-        Play,
-        Pause,
-        PlayPause,
-        Reverse,
-        Stop,
-        FastForward,
-        Rewind,
-        TrackNext,
-        TrackPrevious,
-        Record,
-        LowerVolume,
-        RaiseVolume,
-        MuteVolume,
+        play,
+        pause,
+        play_pause,
+        reverse,
+        stop,
+        fast_forward,
+        rewind,
+        track_next,
+        track_previous,
+        record,
+        lower_volume,
+        raise_volume,
+        mute_volume,
     };
 
     pub const Modifier = enum {
-        LeftShift,
-        LeftControl,
-        LeftAlt,
-        LeftSuper,
-        LeftHyper,
-        LeftMeta,
-        RightShift,
-        RightControl,
-        RightAlt,
-        RightSuper,
-        RightHyper,
-        RightMeta,
-        IsoLevel3Shift,
-        IsoLevel5Shift,
+        left_shift,
+        left_control,
+        left_alt,
+        left_super,
+        left_hyper,
+        left_meta,
+        right_shift,
+        right_control,
+        right_alt,
+        right_super,
+        right_hyper,
+        right_meta,
+        iso_level_3_shift,
+        iso_level_5_shift,
     };
 };
 
@@ -228,14 +228,14 @@ pub const KeyEvent = struct {
 
 /// Supported mouse button events
 pub const MouseButton = enum(u4) {
-    Left,
-    Middle,
-    Right,
-    XButton1,
-    XButton2,
-    ScrollRight,
-    ScrollLeft,
-    Other
+    left,
+    middle,
+    right,
+    xbutton_1,
+    xbutton_2,
+    scroll_right,
+    scroll_left,
+    other
 };
 
 pub const ButtonState = enum(u2) { pressed, released };
@@ -252,11 +252,10 @@ pub const EnhancementFlags = packed struct(u8) {
 };
 
 pub const MouseEventKind = union(enum) {
-    pub const Move: @This() = .{ .move = {} };
-    pub const ScrollDown: @This() = .{ .scroll = .down };
-    pub const ScrollUp: @This() = .{ .scroll = .up };
-    pub const ScrollLeft: @This() = .{ .scroll = .left };
-    pub const ScrollRight: @This() = .{ .scroll = .right };
+    pub const scroll_down: @This() = .{ .scroll = .down };
+    pub const scroll_up: @This() = .{ .scroll = .up };
+    pub const scroll_left: @This() = .{ .scroll = .left };
+    pub const scroll_right: @This() = .{ .scroll = .right };
 
     move: void,
 
@@ -265,18 +264,6 @@ pub const MouseEventKind = union(enum) {
     drag: MouseButton,
 
     scroll: ScrollDirection,
-
-    pub fn down(button: MouseButton) @This() {
-        return .{ .down = button };
-    }
-
-    pub fn up(button: MouseButton) @This() {
-        return .{ .up = button };
-    }
-
-    pub fn drag(button: MouseButton) @This() {
-        return .{ .drag = button };
-    }
 };
 
 pub const MouseEvent = struct {
@@ -336,12 +323,12 @@ pub const MouseEvent = struct {
 pub const Event = union(enum) {
     key: KeyEvent,
     mouse: MouseEvent,
-    resize: std.meta.Tuple(&[_]type{ u16, u16 }),
+    resize: std.meta.Tuple(&.{ u16, u16 }),
     /// Requires `Capture.EnableFocus` to be executed
     focus: bool,
     /// Requires `Capture.EnableBracketedPaste` to be executed
     paste: []const u8,
-    cursor: std.meta.Tuple(&[_]type { u16, u16 })
+    cursor: std.meta.Tuple(&.{ u16, u16 })
 };
 
 pub const EventStream = 

@@ -327,45 +327,45 @@ fn handleMouseEvent(record: MOUSE_EVENT_RECORD, pressed_buttons: *EventStream.Mo
             // TODO: Determine if a button has been released
             var kind: ?MouseEventKind = null;
             if (button.left() and !pressed_buttons.left) {
-                kind = MouseEventKind.down(.Left);
+                kind = MouseEventKind { .down = .left };
             } else if (!button.left() and pressed_buttons.left) {
-                kind = MouseEventKind.up(.Left);
+                kind = MouseEventKind { .up = .left };
             } else if (button.right() and !pressed_buttons.right) {
-                kind = MouseEventKind.down(.Right);
+                kind = MouseEventKind { .down = .right };
             } else if (!button.right() and pressed_buttons.right) {
-                kind = MouseEventKind.up(.Right);
+                kind = MouseEventKind { .up = .right };
             } else if (button.middle() and !pressed_buttons.middle) {
-                kind = MouseEventKind.down(.Middle);
+                kind = MouseEventKind{ .down = .middle };
             } else if (!button.middle() and pressed_buttons.middle) {
-                kind = MouseEventKind.up(.Middle);
+                kind = MouseEventKind { .up = .middle };
             }
 
             return kind;
         },
         .move => {
             const b: event.MouseButton =
-                if (button.right()) .Right
-                else if (button.middle()) .Middle
-                else .Left;
+                if (button.right()) .right
+                else if (button.middle()) .middle
+                else .left;
 
             if (button.released()) {
-                return MouseEventKind.Move;
+                return MouseEventKind { .move = {} };
             } else {
-                return MouseEventKind.drag(b);
+                return MouseEventKind { .drag = b };
             }
         },
         .wheel => {
             if (button.scroll_down()) {
-                return MouseEventKind.ScrollDown;
+                return MouseEventKind.scroll_down;
             } else if (button.scroll_up()) {
-                return MouseEventKind.ScrollUp;
+                return MouseEventKind.scroll_up;
             }
         },
         .hwheel => {
             if (button.scroll_down()) {
-                return MouseEventKind.ScrollLeft;
+                return MouseEventKind.scroll_left;
             } else if (button.scroll_up()) {
-                return MouseEventKind.ScrollRight;
+                return MouseEventKind.scroll_right;
             }
         },
         else => {}
@@ -385,7 +385,7 @@ fn handleKeyEvent(record: KEY_EVENT_RECORD, buffered_surrogate: *EventStream.Sur
                         return Event {
                             .key = .{
                                 .kind = if (record.pressed()) .press else .release,
-                                .code = KeyCode.char(k),
+                                .code = .char(k),
                                 .modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers()
                             }
                         };
@@ -404,7 +404,7 @@ fn handleKeyEvent(record: KEY_EVENT_RECORD, buffered_surrogate: *EventStream.Sur
 fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
     const vkc = record.wVirtualKeyCode;
     const modifiers: Modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers();
-    const is_alt_code = vkc == @intFromEnum(VK.MENU) and !record.pressed() and record.uChar.eql(0);
+    const is_alt_code = vkc == @intFromEnum(VK.menu) and !record.pressed() and record.uChar.eql(0);
 
     if (is_alt_code) {
         if (record.uChar.inRange(0xD800, 0xDFFF)) {
@@ -412,7 +412,7 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
         } else {
             return .{
                 .event = .{
-                    .code = KeyCode.char(try record.uChar.value()),
+                    .code = .char(try record.uChar.value()),
                     .modifiers = ControlKeyState.from(record.dwControlKeyState).modifiers(),
                     .kind = if (record.pressed()) .press else .release,
                 }
@@ -421,7 +421,7 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
     }
 
     // Don't generate events for numpad key presses when they're producing Alt codes.
-    const is_numpad_numeric_key = VK.range(VK.NUMPAD0, VK.NUMPAD9, vkc);
+    const is_numpad_numeric_key = VK.range(.numpad0, .numpad9, vkc);
     const is_only_alt_modifier = modifiers.alt and !modifiers.shift and !modifiers.ctrl;
     if (is_only_alt_modifier and is_numpad_numeric_key) {
         return null;
@@ -429,45 +429,45 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
 
     var result: ?KeyCode = null;
     switch(vkc) {
-        @intFromEnum(VK.SHIFT), @intFromEnum(VK.CONTROL), @intFromEnum(VK.MENU) => {},
-        @intFromEnum(VK.BACK) => result = KeyCode.Backspace,
-        @intFromEnum(VK.ESCAPE) => result = KeyCode.Esc,
-        @intFromEnum(VK.RETURN) => result = KeyCode.Enter,
-        @intFromEnum(VK.F1) => result = KeyCode.f(1),
-        @intFromEnum(VK.F2) => result = KeyCode.f(2),
-        @intFromEnum(VK.F3) => result = KeyCode.f(3),
-        @intFromEnum(VK.F4) => result = KeyCode.f(4),
-        @intFromEnum(VK.F5) => result = KeyCode.f(5),
-        @intFromEnum(VK.F6) => result = KeyCode.f(6),
-        @intFromEnum(VK.F7) => result = KeyCode.f(7),
-        @intFromEnum(VK.F8) => result = KeyCode.f(8),
-        @intFromEnum(VK.F9) => result = KeyCode.f(9),
-        @intFromEnum(VK.F10) => result = KeyCode.f(10),
-        @intFromEnum(VK.F11) => result = KeyCode.f(11),
-        @intFromEnum(VK.F12) => result = KeyCode.f(12),
-        @intFromEnum(VK.F13) => result = KeyCode.f(13),
-        @intFromEnum(VK.F14) => result = KeyCode.f(14),
-        @intFromEnum(VK.F15) => result = KeyCode.f(15),
-        @intFromEnum(VK.F16) => result = KeyCode.f(16),
-        @intFromEnum(VK.F17) => result = KeyCode.f(17),
-        @intFromEnum(VK.F18) => result = KeyCode.f(18),
-        @intFromEnum(VK.F19) => result = KeyCode.f(19),
-        @intFromEnum(VK.F20) => result = KeyCode.f(20),
-        @intFromEnum(VK.F21) => result = KeyCode.f(21),
-        @intFromEnum(VK.F22) => result = KeyCode.f(22),
-        @intFromEnum(VK.F23) => result = KeyCode.f(23),
-        @intFromEnum(VK.F24) => result = KeyCode.f(24),
-        @intFromEnum(VK.LEFT) => result = KeyCode.Left,
-        @intFromEnum(VK.UP) => result = KeyCode.Up,
-        @intFromEnum(VK.RIGHT) => result = KeyCode.Right,
-        @intFromEnum(VK.DOWN) => result = KeyCode.Down,
-        @intFromEnum(VK.PRIOR) => result = KeyCode.PageUp,
-        @intFromEnum(VK.NEXT) => result = KeyCode.PageDown,
-        @intFromEnum(VK.HOME) => result = KeyCode.Home,
-        @intFromEnum(VK.END) => result = KeyCode.End,
-        @intFromEnum(VK.DELETE) => result = KeyCode.Delete,
-        @intFromEnum(VK.INSERT) => result = KeyCode.Insert,
-        @intFromEnum(VK.TAB) => result = KeyCode.Tab,
+        @intFromEnum(VK.shift), @intFromEnum(VK.control), @intFromEnum(VK.menu) => {},
+        @intFromEnum(VK.back) => result = .backspace,
+        @intFromEnum(VK.escape) => result = .esc,
+        @intFromEnum(VK.@"return") => result = .enter,
+        @intFromEnum(VK.f1) => result = .f(1),
+        @intFromEnum(VK.f2) => result = .f(2),
+        @intFromEnum(VK.f3) => result = .f(3),
+        @intFromEnum(VK.f4) => result = .f(4),
+        @intFromEnum(VK.f5) => result = .f(5),
+        @intFromEnum(VK.f6) => result = .f(6),
+        @intFromEnum(VK.f7) => result = .f(7),
+        @intFromEnum(VK.f8) => result = .f(8),
+        @intFromEnum(VK.f9) => result = .f(9),
+        @intFromEnum(VK.f10) => result = .f(10),
+        @intFromEnum(VK.f11) => result = .f(11),
+        @intFromEnum(VK.f12) => result = .f(12),
+        @intFromEnum(VK.f13) => result = .f(13),
+        @intFromEnum(VK.f14) => result = .f(14),
+        @intFromEnum(VK.f15) => result = .f(15),
+        @intFromEnum(VK.@"f16") => result = .f(16),
+        @intFromEnum(VK.f17) => result = .f(17),
+        @intFromEnum(VK.f18) => result = .f(18),
+        @intFromEnum(VK.f19) => result = .f(19),
+        @intFromEnum(VK.f20) => result = .f(20),
+        @intFromEnum(VK.f21) => result = .f(21),
+        @intFromEnum(VK.f22) => result = .f(22),
+        @intFromEnum(VK.f23) => result = .f(23),
+        @intFromEnum(VK.f24) => result = .f(24),
+        @intFromEnum(VK.left) => result = .left,
+        @intFromEnum(VK.up) => result = .up,
+        @intFromEnum(VK.right) => result = .right,
+        @intFromEnum(VK.down) => result = .down,
+        @intFromEnum(VK.prior) => result = .page_up,
+        @intFromEnum(VK.next) => result = .page_down,
+        @intFromEnum(VK.home) => result = .home,
+        @intFromEnum(VK.end) => result = .end,
+        @intFromEnum(VK.delete) => result = .delete,
+        @intFromEnum(VK.insert) => result = .insert,
+        @intFromEnum(VK.tab) => result = .tab,
         else => {
             if (record.uChar.inRange(0x00, 0x1f)) {
                 // Some key combinations generate either no u_char value or generate control
@@ -477,12 +477,12 @@ fn parseKeyRecord(record: KEY_EVENT_RECORD) !?ParsedKeyEvent {
                 // are handled by their virtual key codes above.
                 // REF: https://github.com/crossterm-rs/crossterm/blob/master/src/event/sys/windows/parse.rs#L143
                 if (getCharForKey(record)) |ch| {
-                    result = KeyCode.char(ch);
+                    result = .char(ch);
                 }
             } else if (record.uChar.inRange(0xD800, 0xDFFF)) {
                 return .{ .surrogate = try record.uChar.value() };
             } else {
-                result = KeyCode.char(try record.uChar.value());
+                result = .char(try record.uChar.value());
             }
         }
     }
@@ -561,227 +561,227 @@ const VK = enum(u16) {
     @"7" = 55,
     @"8" = 56,
     @"9" = 57,
-    A = 65,
-    B = 66,
-    C = 67,
-    D = 68,
-    E = 69,
-    F = 70,
-    G = 71,
-    H = 72,
-    I = 73,
-    J = 74,
-    K = 75,
-    L = 76,
-    M = 77,
-    N = 78,
-    O = 79,
-    P = 80,
-    Q = 81,
-    R = 82,
-    S = 83,
-    T = 84,
-    U = 85,
-    V = 86,
-    W = 87,
-    X = 88,
-    Y = 89,
-    Z = 90,
-    LBUTTON = 1,
-    RBUTTON = 2,
-    CANCEL = 3,
-    MBUTTON = 4,
-    XBUTTON1 = 5,
-    XBUTTON2 = 6,
-    BACK = 8,
-    TAB = 9,
-    CLEAR = 12,
-    RETURN = 13,
-    SHIFT = 16,
-    CONTROL = 17,
-    MENU = 18,
-    PAUSE = 19,
-    CAPITAL = 20,
-    KANA = 21,
-    // HANGEUL = 21, this enum value conflicts with KANA
-    // HANGUL = 21, this enum value conflicts with KANA
-    IME_ON = 22,
-    JUNJA = 23,
-    FINAL = 24,
-    HANJA = 25,
-    // KANJI = 25, this enum value conflicts with HANJA
-    IME_OFF = 26,
-    ESCAPE = 27,
-    CONVERT = 28,
-    NONCONVERT = 29,
-    ACCEPT = 30,
-    MODECHANGE = 31,
-    SPACE = 32,
-    PRIOR = 33,
-    NEXT = 34,
-    END = 35,
-    HOME = 36,
-    LEFT = 37,
-    UP = 38,
-    RIGHT = 39,
-    DOWN = 40,
-    SELECT = 41,
-    PRINT = 42,
-    EXECUTE = 43,
-    SNAPSHOT = 44,
-    INSERT = 45,
-    DELETE = 46,
-    HELP = 47,
-    LWIN = 91,
-    RWIN = 92,
-    APPS = 93,
-    SLEEP = 95,
-    NUMPAD0 = 96,
-    NUMPAD1 = 97,
-    NUMPAD2 = 98,
-    NUMPAD3 = 99,
-    NUMPAD4 = 100,
-    NUMPAD5 = 101,
-    NUMPAD6 = 102,
-    NUMPAD7 = 103,
-    NUMPAD8 = 104,
-    NUMPAD9 = 105,
-    MULTIPLY = 106,
-    ADD = 107,
-    SEPARATOR = 108,
-    SUBTRACT = 109,
-    DECIMAL = 110,
-    DIVIDE = 111,
-    F1 = 112,
-    F2 = 113,
-    F3 = 114,
-    F4 = 115,
-    F5 = 116,
-    F6 = 117,
-    F7 = 118,
-    F8 = 119,
-    F9 = 120,
-    F10 = 121,
-    F11 = 122,
-    F12 = 123,
-    F13 = 124,
-    F14 = 125,
-    F15 = 126,
-    F16 = 127,
-    F17 = 128,
-    F18 = 129,
-    F19 = 130,
-    F20 = 131,
-    F21 = 132,
-    F22 = 133,
-    F23 = 134,
-    F24 = 135,
-    NAVIGATION_VIEW = 136,
-    NAVIGATION_MENU = 137,
-    NAVIGATION_UP = 138,
-    NAVIGATION_DOWN = 139,
-    NAVIGATION_LEFT = 140,
-    NAVIGATION_RIGHT = 141,
-    NAVIGATION_ACCEPT = 142,
-    NAVIGATION_CANCEL = 143,
-    NUMLOCK = 144,
-    SCROLL = 145,
-    OEM_NEC_EQUAL = 146,
-    // OEM_FJ_JISHO = 146, this enum value conflicts with OEM_NEC_EQUAL
-    OEM_FJ_MASSHOU = 147,
-    OEM_FJ_TOUROKU = 148,
-    OEM_FJ_LOYA = 149,
-    OEM_FJ_ROYA = 150,
-    LSHIFT = 160,
-    RSHIFT = 161,
-    LCONTROL = 162,
-    RCONTROL = 163,
-    LMENU = 164,
-    RMENU = 165,
-    BROWSER_BACK = 166,
-    BROWSER_FORWARD = 167,
-    BROWSER_REFRESH = 168,
-    BROWSER_STOP = 169,
-    BROWSER_SEARCH = 170,
-    BROWSER_FAVORITES = 171,
-    BROWSER_HOME = 172,
-    VOLUME_MUTE = 173,
-    VOLUME_DOWN = 174,
-    VOLUME_UP = 175,
-    MEDIA_NEXT_TRACK = 176,
-    MEDIA_PREV_TRACK = 177,
-    MEDIA_STOP = 178,
-    MEDIA_PLAY_PAUSE = 179,
-    LAUNCH_MAIL = 180,
-    LAUNCH_MEDIA_SELECT = 181,
-    LAUNCH_APP1 = 182,
-    LAUNCH_APP2 = 183,
-    OEM_1 = 186,
-    OEM_PLUS = 187,
-    OEM_COMMA = 188,
-    OEM_MINUS = 189,
-    OEM_PERIOD = 190,
-    OEM_2 = 191,
-    OEM_3 = 192,
-    GAMEPAD_A = 195,
-    GAMEPAD_B = 196,
-    GAMEPAD_X = 197,
-    GAMEPAD_Y = 198,
-    GAMEPAD_RIGHT_SHOULDER = 199,
-    GAMEPAD_LEFT_SHOULDER = 200,
-    GAMEPAD_LEFT_TRIGGER = 201,
-    GAMEPAD_RIGHT_TRIGGER = 202,
-    GAMEPAD_DPAD_UP = 203,
-    GAMEPAD_DPAD_DOWN = 204,
-    GAMEPAD_DPAD_LEFT = 205,
-    GAMEPAD_DPAD_RIGHT = 206,
-    GAMEPAD_MENU = 207,
-    GAMEPAD_VIEW = 208,
-    GAMEPAD_LEFT_THUMBSTICK_BUTTON = 209,
-    GAMEPAD_RIGHT_THUMBSTICK_BUTTON = 210,
-    GAMEPAD_LEFT_THUMBSTICK_UP = 211,
-    GAMEPAD_LEFT_THUMBSTICK_DOWN = 212,
-    GAMEPAD_LEFT_THUMBSTICK_RIGHT = 213,
-    GAMEPAD_LEFT_THUMBSTICK_LEFT = 214,
-    GAMEPAD_RIGHT_THUMBSTICK_UP = 215,
-    GAMEPAD_RIGHT_THUMBSTICK_DOWN = 216,
-    GAMEPAD_RIGHT_THUMBSTICK_RIGHT = 217,
-    GAMEPAD_RIGHT_THUMBSTICK_LEFT = 218,
-    OEM_4 = 219,
-    OEM_5 = 220,
-    OEM_6 = 221,
-    OEM_7 = 222,
-    OEM_8 = 223,
-    OEM_AX = 225,
-    OEM_102 = 226,
-    ICO_HELP = 227,
-    ICO_00 = 228,
-    PROCESSKEY = 229,
-    ICO_CLEAR = 230,
-    PACKET = 231,
-    OEM_RESET = 233,
-    OEM_JUMP = 234,
-    OEM_PA1 = 235,
-    OEM_PA2 = 236,
-    OEM_PA3 = 237,
-    OEM_WSCTRL = 238,
-    OEM_CUSEL = 239,
-    OEM_ATTN = 240,
-    OEM_FINISH = 241,
-    OEM_COPY = 242,
-    OEM_AUTO = 243,
-    OEM_ENLW = 244,
-    OEM_BACKTAB = 245,
-    ATTN = 246,
-    CRSEL = 247,
-    EXSEL = 248,
-    EREOF = 249,
-    PLAY = 250,
-    ZOOM = 251,
-    NONAME = 252,
-    PA1 = 253,
-    OEM_CLEAR = 254,
-    Other = 255,
+    a = 65,
+    b = 66,
+    c = 67,
+    d = 68,
+    e = 69,
+    f = 70,
+    g = 71,
+    h = 72,
+    i = 73,
+    j = 74,
+    k = 75,
+    l = 76,
+    m = 77,
+    n = 78,
+    o = 79,
+    p = 80,
+    q = 81,
+    r = 82,
+    s = 83,
+    t = 84,
+    u = 85,
+    v = 86,
+    w = 87,
+    x = 88,
+    y = 89,
+    z = 90,
+    lbutton = 1,
+    rbutton = 2,
+    cancel = 3,
+    mbutton = 4,
+    xbutton1 = 5,
+    xbutton2 = 6,
+    back = 8,
+    tab = 9,
+    clear = 12,
+    @"return" = 13,
+    shift = 16,
+    control = 17,
+    menu = 18,
+    pause = 19,
+    capital = 20,
+    kana = 21,
+    // hangeul = 21, this enum value conflicts with kana
+    // hangul = 21, this enum value conflicts with kana
+    ime_on = 22,
+    junja = 23,
+    final = 24,
+    hanja = 25,
+    // kanji = 25, this enum value conflicts with hanja
+    ime_off = 26,
+    escape = 27,
+    convert = 28,
+    nonconvert = 29,
+    accept = 30,
+    modechange = 31,
+    space = 32,
+    prior = 33,
+    next = 34,
+    end = 35,
+    home = 36,
+    left = 37,
+    up = 38,
+    right = 39,
+    down = 40,
+    select = 41,
+    print = 42,
+    execute = 43,
+    snapshot = 44,
+    insert = 45,
+    delete = 46,
+    help = 47,
+    lwin = 91,
+    rwin = 92,
+    apps = 93,
+    sleep = 95,
+    numpad0 = 96,
+    numpad1 = 97,
+    numpad2 = 98,
+    numpad3 = 99,
+    numpad4 = 100,
+    numpad5 = 101,
+    numpad6 = 102,
+    numpad7 = 103,
+    numpad8 = 104,
+    numpad9 = 105,
+    multiply = 106,
+    add = 107,
+    separator = 108,
+    subtract = 109,
+    decimal = 110,
+    divide = 111,
+    f1 = 112,
+    f2 = 113,
+    f3 = 114,
+    f4 = 115,
+    f5 = 116,
+    f6 = 117,
+    f7 = 118,
+    f8 = 119,
+    f9 = 120,
+    f10 = 121,
+    f11 = 122,
+    f12 = 123,
+    f13 = 124,
+    f14 = 125,
+    f15 = 126,
+    @"f16" = 127,
+    f17 = 128,
+    f18 = 129,
+    f19 = 130,
+    f20 = 131,
+    f21 = 132,
+    f22 = 133,
+    f23 = 134,
+    f24 = 135,
+    navigation_view = 136,
+    navigation_menu = 137,
+    navigation_up = 138,
+    navigation_down = 139,
+    navigation_left = 140,
+    navigation_right = 141,
+    navigation_accept = 142,
+    navigation_cancel = 143,
+    numlock = 144,
+    scroll = 145,
+    oem_nec_equal = 146,
+    // oem_fj_jisho = 146, this enum value conflicts with oem_nec_equal
+    oem_fj_masshou = 147,
+    oem_fj_touroku = 148,
+    oem_fj_loya = 149,
+    oem_fj_roya = 150,
+    lshift = 160,
+    rshift = 161,
+    lcontrol = 162,
+    rcontrol = 163,
+    lmenu = 164,
+    rmenu = 165,
+    browser_back = 166,
+    browser_forward = 167,
+    browser_refresh = 168,
+    browser_stop = 169,
+    browser_search = 170,
+    browser_favorites = 171,
+    browser_home = 172,
+    volume_mute = 173,
+    volume_down = 174,
+    volume_up = 175,
+    media_next_track = 176,
+    media_prev_track = 177,
+    media_stop = 178,
+    media_play_pause = 179,
+    launch_mail = 180,
+    launch_media_select = 181,
+    launch_app1 = 182,
+    launch_app2 = 183,
+    oem_1 = 186,
+    oem_plus = 187,
+    oem_comma = 188,
+    oem_minus = 189,
+    oem_period = 190,
+    oem_2 = 191,
+    oem_3 = 192,
+    gamepad_a = 195,
+    gamepad_b = 196,
+    gamepad_x = 197,
+    gamepad_y = 198,
+    gamepad_right_shoulder = 199,
+    gamepad_left_shoulder = 200,
+    gamepad_left_trigger = 201,
+    gamepad_right_trigger = 202,
+    gamepad_dpad_up = 203,
+    gamepad_dpad_down = 204,
+    gamepad_dpad_left = 205,
+    gamepad_dpad_right = 206,
+    gamepad_menu = 207,
+    gamepad_view = 208,
+    gamepad_left_thumbstick_button = 209,
+    gamepad_right_thumbstick_button = 210,
+    gamepad_left_thumbstick_up = 211,
+    gamepad_left_thumbstick_down = 212,
+    gamepad_left_thumbstick_right = 213,
+    gamepad_left_thumbstick_left = 214,
+    gamepad_right_thumbstick_up = 215,
+    gamepad_right_thumbstick_down = 216,
+    gamepad_right_thumbstick_right = 217,
+    gamepad_right_thumbstick_left = 218,
+    oem_4 = 219,
+    oem_5 = 220,
+    oem_6 = 221,
+    oem_7 = 222,
+    oem_8 = 223,
+    oem_ax = 225,
+    oem_102 = 226,
+    ico_help = 227,
+    ico_00 = 228,
+    processkey = 229,
+    ico_clear = 230,
+    packet = 231,
+    oem_reset = 233,
+    oem_jump = 234,
+    oem_pa1 = 235,
+    oem_pa2 = 236,
+    oem_pa3 = 237,
+    oem_wsctrl = 238,
+    oem_cusel = 239,
+    oem_attn = 240,
+    oem_finish = 241,
+    oem_copy = 242,
+    oem_auto = 243,
+    oem_enlw = 244,
+    oem_backtab = 245,
+    attn = 246,
+    crsel = 247,
+    exsel = 248,
+    ereof = 249,
+    play = 250,
+    zoom = 251,
+    noname = 252,
+    pa1 = 253,
+    oem_clear = 254,
+    other = 255,
 
     pub fn from(value: u16) @This() {
         if (value < 255) return @enumFromInt(value);
@@ -792,55 +792,3 @@ const VK = enum(u16) {
         return @intFromEnum(start) <= value and @intFromEnum(end) >= value;
     }
 };
-
-// fn try_read(&mut self, timeout: Option<Duration>) -> std::io::Result<Option<InternalEvent>> {
-//        let poll_timeout = PollTimeout::new(timeout);
-//
-//        loop {
-//            if let Some(event_ready) = self.poll.poll(poll_timeout.leftover())? {
-//                let number = self.console.number_of_console_input_events()?;
-//                if event_ready && number != 0 {
-//                    let event = match self.console.read_single_input_event()? {
-//                        InputRecord::KeyEvent(record) => {
-//                            handle_key_event(record, &mut self.surrogate_buffer)
-//                        }
-//                        InputRecord::MouseEvent(record) => {
-//                            let mouse_event =
-//                                handle_mouse_event(record, &self.mouse_buttons_pressed);
-//                            self.mouse_buttons_pressed = MouseButtonsPressed {
-//                                left: record.button_state.left_button(),
-//                                right: record.button_state.right_button(),
-//                                middle: record.button_state.middle_button(),
-//                            };
-//
-//                            mouse_event
-//                        }
-//                        InputRecord::WindowBufferSizeEvent(record) => {
-//                            // windows starts counting at 0, unix at 1, add one to replicate unix behaviour.
-//                            Some(Event::Resize(
-//                                (record.size.x as i32 + 1) as u16,
-//                                (record.size.y as i32 + 1) as u16,
-//                            ))
-//                        }
-//                        InputRecord::FocusEvent(record) => {
-//                            let event = if record.set_focus {
-//                                Event::FocusGained
-//                            } else {
-//                                Event::FocusLost
-//                            };
-//                            Some(event)
-//                        }
-//                        _ => None,
-//                    };
-//
-//                    if let Some(event) = event {
-//                        return Ok(Some(InternalEvent::Event(event)));
-//                    }
-//                }
-//            }
-//
-//            if poll_timeout.elapsed() {
-//                return Ok(None);
-//            }
-//        }
-//    }

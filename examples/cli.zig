@@ -8,13 +8,11 @@ const getCursorPos = termz.action.getCursorPos;
 const Line = termz.action.Line;
 const Capture = termz.action.Capture;
 const Style = termz.style.Style;
-const Color = termz.style.Color;
 const Reset = termz.style.Reset;
 
 const Utf8ConsoleOutput = termz.Utf8ConsoleOutput;
 
 const EventStream = termz.event.EventStream;
-const KeyCode = termz.event.KeyCode;
 
 const execute = termz.execute;
 
@@ -24,17 +22,16 @@ pub fn main() !void {
     const utf8_ctx = Utf8ConsoleOutput.init();
     defer utf8_ctx.deinit();
 
-    try execute(.Stdout, .{
-        Screen.title("Hello World"),
-
-        Style { .fg = Color.Red },
+    try execute(.stdout, .{
+        Screen{ .title = "Hello World" },
+        Style { .fg = .red },
         "Hello, ",
-        Reset.fg(),
+        Reset { .fg = true },
 
         Cursor.Save,
-        Style { .fg = Color.Magenta },
+        Style { .fg = .magenta },
         "world!\n",
-        Reset.fg(),
+        Reset { .fg = true },
 
         Cursor { .shape = .block_blink }
     });
@@ -42,42 +39,42 @@ pub fn main() !void {
     const frames = [_]u21{ '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' };
     for (0..3) |_| {
         for (0..frames.len) |i| {
-            try execute(.Stdout, .{
+            try execute(.stdout, .{
                 "\r",
-                Style { .fg = Color.Yellow },
+                Style { .fg = .yellow },
                 frames[i],
-                Reset.fg(),
+                Reset { .fg = true },
                 " Loading..."
             });
             std.time.sleep(80 * std.time.ns_per_ms);
         }
     }
 
-    try execute(.Stdout, .{
-        Line.erase(.FromBeginning),
+    try execute(.stdout, .{
+        Line{ .erase = .FromBeginning },
         '\r',
-        Style { .fg = Color.Green },
+        Style { .fg = .green },
         '✓',
-        Reset.fg(),
+        Reset { .fg = true },
         " Success\n"
     });
 
-    try execute(.Stdout, .{
-        Screen.title("Hello Everyone"),
+    try execute(.stdout, .{
+        Screen { .title = "Hello Everyone" },
 
         Cursor.Restore,
-        Line.erase(.ToEnd),
+        Line { .erase = .ToEnd },
 
-        Style { .fg = Color.Yellow },
+        Style { .fg = .yellow },
         "everyone!",
-        Reset.fg(),
+        Reset { .fg = true },
         Cursor { .shape = .block, .down = 2, .col = 1 }
     });
 
     try Screen.enableRawMode();
     errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
 
-    try execute(.Stdout, .{
+    try execute(.stdout, .{
         Screen.EnterAlternateBuffer,
         Capture.EnableMouse,
         Capture.EnableFocus,
@@ -97,8 +94,8 @@ pub fn main() !void {
             switch (evt) {
                 .key => |ke| {
                     std.log.debug("{any}\r", .{ ke });
-                    if (ke.matches(.{ .code = KeyCode.char('c'), .ctrl = true })) break;
-                    if (ke.matches(.{ .code = KeyCode.char('q') })) break;
+                    if (ke.matches(.{ .code = .char('c'), .ctrl = true })) break;
+                    if (ke.matches(.{ .code = .char('q') })) break;
                 },
                 .mouse => |me| {
                     std.log.debug("{any}\r", .{ me });
@@ -110,7 +107,7 @@ pub fn main() !void {
         }
     }
 
-    try execute(.Stdout, .{
+    try execute(.stdout, .{
         Capture.DisableMouse,
         Capture.DisableFocus,
         Capture.DisableBracketedPaste,
@@ -119,10 +116,10 @@ pub fn main() !void {
 
     try Screen.disableRawMode();
 
-    try execute(.Stdout, .{
-        Style { .mod = .{ .underline = true }, .hyperlink = "https://example.com" },
+    try execute(.stdout, .{
+        Style { .mod = .{ .underline = .single }, .hyperlink = "https://example.com" },
         "Example",
-        Reset { .mod = .{ .underline = true }, .hyperlink = true },
+        Reset { .mod = .{ .underline = .single }, .hyperlink = true },
         '\n',
     });
 

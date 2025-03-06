@@ -190,9 +190,9 @@ pub const Cursor = struct {
     /// Start or stop the cursor blinking
     blink: ?bool = null,
     /// Change the shape of the cursor
-    shape: ?Shape = null,
+    shape: ?CursorShape = null,
 
-    const Shape = enum {
+    pub const CursorShape = enum {
         block,
         block_blink,
         underline,
@@ -210,14 +210,11 @@ pub const Cursor = struct {
     pub const Hide: @This() = .{ .visibility = .hidden };
     /// Show the hidden cursor
     pub const Show: @This() = .{ .visibility = .visible };
-
-    /// Start or stop cursor blinking
-    pub fn blink(s: bool) @This() {
-        return .{ .blink = s };
-    }
+    pub const Blink: @This() = .{ .blink = true };
+    pub const NoBlink: @This() = .{ .blink = false };
 
     /// Change the shape of the cursor
-    pub fn shape(s: Shape) @This() {
+    pub fn Shape(s: CursorShape) @This() {
         return .{ .shape = s };
     }
 
@@ -420,31 +417,6 @@ pub const Screen = union(enum) {
         }
     }
 
-    /// Scroll the screen up
-    pub fn scroll_up(u: u16) @This() {
-        return .{ .scroll_up = u };
-    }
-
-    /// Scroll the screen down
-    pub fn scroll_down(d: u16) @This() {
-        return .{ .scroll_down = d };
-    }
-
-    /// Erase a part of the screen
-    pub fn erase(e: Erase) @This() {
-        return .{ .erase = e };
-    }
-
-    /// Change the terminal title
-    pub fn title(t: []const u8) @This() {
-        return .{ .title = t };
-    }
-
-    /// Resize the screen
-    pub fn resize(w: u16, h: u16) @This() {
-        return .{ .resize = .{ .w = w, .h = h }};
-    }
-
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (value) {
             .scroll_up => |u| try writer.print("\x1b[{d}S", .{u}),
@@ -475,23 +447,6 @@ pub const Line = union(enum) {
     /// Erase all the specific lines with `space` characters
     erase: Erase,
 
-    /// Insert new lines shifting lines on and after
-    /// the cursor's position down
-    pub fn insert(i: u16) @This() {
-        return .{ .insert = i };
-    }
-
-    /// Delete lines from the buffer starting with the
-    /// line the cursor is one
-    pub fn delete(d: u16) @This() {
-        return .{ .delete = d };
-    }
-
-    /// Erase all the specific lines with `space` characters
-    pub fn erase(e: Erase) @This() {
-        return .{ .erase = e };
-    }
-
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (value) {
             .insert => |u| try writer.print("\x1b[{d}L", .{u}),
@@ -515,27 +470,6 @@ pub const Character = union(enum) {
     /// Erase characters from the current cursor position
     /// by overwriting them with a `space` character
     erase: u16,
-
-    /// Insert spaces at the current cursor position,
-    /// shifting all existing text to the right.
-    ///
-    /// All text that exit the screen to the right are removed
-    pub fn insert(i: u16) @This() {
-        return .{ .insert = i };
-    }
-
-    /// Delete characters at the current cursor position,
-    /// shifting in space characters fromt he right edge
-    /// of the screen
-    pub fn delete(d: u16) @This() {
-        return .{ .delete = d };
-    }
-
-    /// Erase characters from the current cursor position
-    /// by overwriting them with a `space` character
-    pub fn erase(e: u16) @This() {
-        return .{ .erase = e };
-    }
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (value) {

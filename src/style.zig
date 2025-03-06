@@ -5,233 +5,233 @@ const onCached = @import("tty.zig").onCached;
 
 /// XTerm named colors
 pub const XTerm = enum(u8) {
-    Black = 0,
-    Maroon = 1,
-    Green = 2,
-    Olive = 3,
-    Navy = 4,
-    Purple = 129,
-    Teal = 6,
-    Silver = 7,
-    Grey = 8,
-    Red = 9,
-    Lime = 10,
-    Yellow = 11,
-    Blue = 12,
-    Fuchsia = 13,
-    Aqua = 14,
-    White = 15,
-    NavyBlue = 17,
-    DarkBlue = 18,
-    Blue3 = 20,
-    DarkGreen = 22,
-    DeepSkyBlue4 = 25,
-    DodgerBlue3 = 26,
-    DodgerBlue2 = 27,
-    Green4 = 28,
-    SpringGreen4 = 29,
-    Turquoise4 = 30,
-    DeepSkyBlue3 = 32,
-    DodgerBlue1 = 33,
-    Green3 = 40,
-    SpringGreen3 = 41,
-    DarkCyan = 36,
-    LightSeaGreen = 37,
-    DeepSkyBlue2 = 38,
-    DeepSkyBlue1 = 39,
-    SpringGreen2 = 47,
-    Cyan3 = 43,
-    DarkTurquoise = 44,
-    Turquoise2 = 45,
-    SpringGreen1 = 48,
-    MediumSpringGreen = 49,
-    Cyan2 = 50,
-    DarkRed = 88,
-    DeepPink4 = 125,
-    Purple4 = 55,
-    Purple3 = 56,
-    BlueViolet = 57,
-    Orange4 = 94,
-    Grey37 = 59,
-    MediumPurple4 = 60,
-    SlateBlue3 = 62,
-    RoyalBlue1 = 63,
-    Chartreuse4 = 64,
-    DarkSeaGreen4 = 71,
-    PaleTurquoise4 = 66,
-    SteelBlue = 67,
-    SteelBlue3 = 68,
-    CornflowerBlue = 69,
-    Chartreuse3 = 76,
-    CadetBlue = 73,
-    SkyBlue3 = 74,
-    SteelBlue1 = 81,
-    PaleGreen3 = 114,
-    SeaGreen3 = 78,
-    Aquamarine3 = 79,
-    MediumTurquoise = 80,
-    Chartreuse2 = 112,
-    SeaGreen2 = 83,
-    SeaGreen1 = 85,
-    Aquamarine1 = 122,
-    DarkSlateGray2 = 87,
-    DarkMagenta = 91,
-    DarkViolet = 128,
-    LightPink4 = 95,
-    Plum4 = 96,
-    MediumPurple3 = 98,
-    SlateBlue1 = 99,
-    Yellow4 = 106,
-    Wheat4 = 101,
-    Grey53 = 102,
-    LightSlateGrey = 103,
-    MediumPurple = 104,
-    LightSlateBlue = 105,
-    DarkOliveGreen3 = 149,
-    DarkSeaGreen = 108,
-    LightSkyBlue3 = 110,
-    SkyBlue2 = 111,
-    DarkSeaGreen3 = 150,
-    DarkSlateGray3 = 116,
-    SkyBlue1 = 117,
-    Chartreuse1 = 118,
-    LightGreen = 120,
-    PaleGreen1 = 156,
-    DarkSlateGray1 = 123,
-    Red3 = 160,
-    MediumVioletRed = 126,
-    Magenta3 = 164,
-    DarkOrange3 = 166,
-    IndianRed = 167,
-    HotPink3 = 168,
-    MediumOrchid3 = 133,
-    MediumOrchid = 134,
-    MediumPurple2 = 140,
-    DarkGoldenrod = 136,
-    LightSalmon3 = 173,
-    RosyBrown = 138,
-    Grey63 = 139,
-    MediumPurple1 = 141,
-    Gold3 = 178,
-    DarkKhaki = 143,
-    NavajoWhite3 = 144,
-    Grey69 = 145,
-    LightSteelBlue3 = 146,
-    LightSteelBlue = 147,
-    Yellow3 = 184,
-    DarkSeaGreen2 = 157,
-    LightCyan3 = 152,
-    LightSkyBlue1 = 153,
-    GreenYellow = 154,
-    DarkOliveGreen2 = 155,
-    DarkSeaGreen1 = 193,
-    PaleTurquoise1 = 159,
-    DeepPink3 = 162,
-    Magenta2 = 200,
-    HotPink2 = 169,
-    Orchid = 170,
-    MediumOrchid1 = 207,
-    Orange3 = 172,
-    LightPink3 = 174,
-    Pink3 = 175,
-    Plum3 = 176,
-    Violet = 177,
-    LightGoldenrod3 = 179,
-    Tan = 180,
-    MistyRose3 = 181,
-    Thistle3 = 182,
-    Plum2 = 183,
-    Khaki3 = 185,
-    LightGoldenrod2 = 222,
-    LightYellow3 = 187,
-    Grey84 = 188,
-    LightSteelBlue1 = 189,
-    Yellow2 = 190,
-    DarkOliveGreen1 = 192,
-    Honeydew2 = 194,
-    LightCyan1 = 195,
-    DeepPink2 = 197,
-    DeepPink1 = 199,
-    OrangeRed1 = 202,
-    IndianRed1 = 204,
-    HotPink = 206,
-    DarkOrange = 208,
-    Salmon1 = 209,
-    LightCoral = 210,
-    PaleVioletRed1 = 211,
-    Orchid2 = 212,
-    Orchid1 = 213,
-    Orange1 = 214,
-    SandyBrown = 215,
-    LightSalmon1 = 216,
-    LightPink1 = 217,
-    Pink1 = 218,
-    Plum1 = 219,
-    Gold1 = 220,
-    NavajoWhite1 = 223,
-    MistyRose1 = 224,
-    Thistle1 = 225,
-    LightGoldenrod1 = 227,
-    Khaki1 = 228,
-    Wheat1 = 229,
-    Cornsilk1 = 230,
-    Grey3 = 232,
-    Grey7 = 233,
-    Grey11 = 234,
-    Grey15 = 235,
-    Grey19 = 236,
-    Grey23 = 237,
-    Grey27 = 238,
-    Grey30 = 239,
-    Grey35 = 240,
-    Grey39 = 241,
-    Grey42 = 242,
-    Grey46 = 243,
-    Grey54 = 245,
-    Grey58 = 246,
-    Grey62 = 247,
-    Grey66 = 248,
-    Grey70 = 249,
-    Grey74 = 250,
-    Grey78 = 251,
-    Grey82 = 252,
-    Grey85 = 253,
-    Grey89 = 254,
-    Grey93 = 255,
+    black = 0,
+    maroon = 1,
+    green = 2,
+    olive = 3,
+    navy = 4,
+    purple = 129,
+    teal = 6,
+    silver = 7,
+    grey = 8,
+    red = 9,
+    lime = 10,
+    yellow = 11,
+    blue = 12,
+    fuchsia = 13,
+    aqua = 14,
+    white = 15,
+    navy_blue = 17,
+    dark_blue = 18,
+    blue_3 = 20,
+    dark_green = 22,
+    deep_sky_blue_4 = 25,
+    dodger_blue_3 = 26,
+    dodger_blue_2 = 27,
+    green_4 = 28,
+    spring_green_4 = 29,
+    turquoise_4 = 30,
+    deep_sky_blue_3 = 32,
+    dodger_blue_1 = 33,
+    green_3 = 40,
+    spring_green_3 = 41,
+    dark_cyan = 36,
+    light_sea_green = 37,
+    deep_sky_blue_2 = 38,
+    deep_sky_blue_1 = 39,
+    spring_green_2 = 47,
+    cyan_3 = 43,
+    dark_turquoise = 44,
+    turquoise_2 = 45,
+    spring_green_1 = 48,
+    medium_spring_green = 49,
+    cyan_2 = 50,
+    dark_red = 88,
+    deep_pink_4 = 125,
+    purple_4 = 55,
+    purple_3 = 56,
+    blue_violet = 57,
+    orange_4 = 94,
+    grey_37 = 59,
+    medium_purple_4 = 60,
+    slate_blue_3 = 62,
+    royal_blue_1 = 63,
+    chartreuse_4 = 64,
+    dark_sea_green_4 = 71,
+    pale_turquoise_4 = 66,
+    steel_blue = 67,
+    steel_blue_3 = 68,
+    cornflower_blue = 69,
+    chartreuse_3 = 76,
+    cadet_blue = 73,
+    sky_blue_3 = 74,
+    steel_blue_1 = 81,
+    pale_green_3 = 114,
+    sea_green_3 = 78,
+    aquamarine_3 = 79,
+    medium_turquoise = 80,
+    chartreuse_2 = 112,
+    sea_green_2 = 83,
+    sea_green_1 = 85,
+    aquamarine_1 = 122,
+    dark_slate_gray_2 = 87,
+    dark_magenta = 91,
+    dark_violet = 128,
+    light_pink_4 = 95,
+    plum_4 = 96,
+    medium_purple_3 = 98,
+    slate_blue_1 = 99,
+    yellow_4 = 106,
+    wheat_4 = 101,
+    grey_53 = 102,
+    light_slate_grey = 103,
+    medium_purple = 104,
+    light_slate_blue = 105,
+    dark_olive_green_3 = 149,
+    dark_sea_green = 108,
+    light_sky_blue_3 = 110,
+    sky_blue_2 = 111,
+    dark_sea_green_3 = 150,
+    dark_slate_gray_3 = 116,
+    sky_blue_1 = 117,
+    chartreuse_1 = 118,
+    light_green = 120,
+    pale_green_1 = 156,
+    dark_slate_gray_1 = 123,
+    red_3 = 160,
+    medium_violet_red = 126,
+    magenta_3 = 164,
+    dark_orange_3 = 166,
+    indian_red = 167,
+    hot_pink_3 = 168,
+    medium_orchid_3 = 133,
+    medium_orchid = 134,
+    medium_purple_2 = 140,
+    dark_goldenrod = 136,
+    light_salmon_3 = 173,
+    rosy_brown = 138,
+    grey_63 = 139,
+    medium_purple_1 = 141,
+    gold_3 = 178,
+    dark_khaki = 143,
+    navajo_white_3 = 144,
+    grey_69 = 145,
+    light_steel_blue_3 = 146,
+    light_steel_blue = 147,
+    yellow_3 = 184,
+    dark_sea_green_2 = 157,
+    light_cyan_3 = 152,
+    light_sky_blue_1 = 153,
+    green_yellow = 154,
+    dark_olive_green_2 = 155,
+    dark_sea_green_1 = 193,
+    pale_turquoise_1 = 159,
+    deep_pink_3 = 162,
+    magenta_2 = 200,
+    hot_pink_2 = 169,
+    orchid = 170,
+    medium_orchid_1 = 207,
+    orange_3 = 172,
+    light_pink_3 = 174,
+    pink_3 = 175,
+    plum_3 = 176,
+    violet = 177,
+    light_goldenrod_3 = 179,
+    tan = 180,
+    misty_rose_3 = 181,
+    thistle_3 = 182,
+    plum_2 = 183,
+    khaki_3 = 185,
+    light_goldenrod_2 = 222,
+    light_yellow_3 = 187,
+    grey_84 = 188,
+    light_steel_blue_1 = 189,
+    yellow_2 = 190,
+    dark_olive_green_1 = 192,
+    honeydew_2 = 194,
+    light_cyan_1 = 195,
+    deep_pink_2 = 197,
+    deep_pink_1 = 199,
+    orange_red_1 = 202,
+    indian_red_1 = 204,
+    hot_pink = 206,
+    dark_orange = 208,
+    salmon_1 = 209,
+    light_coral = 210,
+    pale_violet_red_1 = 211,
+    orchid_2 = 212,
+    orchid_1 = 213,
+    orange_1 = 214,
+    sandy_brown = 215,
+    light_salmon_1 = 216,
+    light_pink_1 = 217,
+    pink_1 = 218,
+    plum_1 = 219,
+    gold_1 = 220,
+    navajo_white_1 = 223,
+    misty_rose_1 = 224,
+    thistle_1 = 225,
+    light_goldenrod_1 = 227,
+    khaki_1 = 228,
+    wheat_1 = 229,
+    cornsilk_1 = 230,
+    grey_3 = 232,
+    grey_7 = 233,
+    grey_11 = 234,
+    grey_15 = 235,
+    grey_19 = 236,
+    grey_23 = 237,
+    grey_27 = 238,
+    grey_30 = 239,
+    grey_35 = 240,
+    grey_39 = 241,
+    grey_42 = 242,
+    grey_46 = 243,
+    grey_54 = 245,
+    grey_58 = 246,
+    grey_62 = 247,
+    grey_66 = 248,
+    grey_70 = 249,
+    grey_74 = 250,
+    grey_78 = 251,
+    grey_82 = 252,
+    grey_85 = 253,
+    grey_89 = 254,
+    grey_93 = 255,
 };
 
 /// Ansi Color Representation
 pub const Color = union(enum) {
-    pub const Black: @This() = .{ .black = {} };
-    pub const Red: @This() = .{ .red = {} };
-    pub const Green: @This() = .{ .green = {} };
-    pub const Yellow: @This() = .{ .yellow = {} };
-    pub const Blue: @This() = .{ .blue = {} };
-    pub const Magenta: @This() = .{ .magenta = {} };
-    pub const Cyan: @This() = .{ .cyan = {} };
-    pub const White: @This() = .{ .white = {} };
-    pub const Default: @This() = .{ .default = {} };
+    pub const black: @This() = .{ .system_black = {} };
+    pub const red: @This() = .{ .system_red = {} };
+    pub const green: @This() = .{ .system_green = {} };
+    pub const yellow: @This() = .{ .system_yellow = {} };
+    pub const blue: @This() = .{ .system_blue = {} };
+    pub const magenta: @This() = .{ .system_magenta = {} };
+    pub const cyan: @This() = .{ .system_cyan = {} };
+    pub const white: @This() = .{ .system_white = {} };
+    pub const default: @This() = .{ .system_default = {} };
 
     /// System `black`
-    black: void,
+    system_black: void,
     /// System `red`
-    red: void,
+    system_red: void,
     /// System `green`
-    green: void,
+    system_green: void,
     /// System `yellow`
-    yellow: void,
+    system_yellow: void,
     /// System `blue`
-    blue: void,
+    system_blue: void,
     /// System `magenta`
-    magenta: void,
+    system_magenta: void,
     /// System `cyan`
-    cyan: void,
+    system_cyan: void,
     /// System `white`
-    white: void,
-    default: void,
+    system_white: void,
+    system_default: void,
 
-    rgb: std.meta.Tuple(&.{ u8, u8, u8 }),
-    xterm: XTerm,
+    ansi_rgb: std.meta.Tuple(&.{ u8, u8, u8 }),
+    ansi_xterm: XTerm,
 
     pub fn rgb(r: u8, g: u8, b: u8) @This() {
         return .{ .rgb = .{ r, g, b } };
@@ -243,19 +243,19 @@ pub const Color = union(enum) {
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
-            .black => try writer.print("0", .{}),
-            .red => try writer.print("1", .{}),
-            .green => try writer.print("2", .{}),
-            .yellow => try writer.print("3", .{}),
-            .blue => try writer.print("4", .{}),
-            .magenta => try writer.print("5", .{}),
-            .cyan => try writer.print("6", .{}),
-            .white => try writer.print("7", .{}),
-            .default => try writer.print("9", .{}),
-            .rgb => |_rgb| {
+            .system_black => try writer.print("0", .{}),
+            .system_red => try writer.print("1", .{}),
+            .system_green => try writer.print("2", .{}),
+            .system_yellow => try writer.print("3", .{}),
+            .system_blue => try writer.print("4", .{}),
+            .system_magenta => try writer.print("5", .{}),
+            .system_cyan => try writer.print("6", .{}),
+            .system_white => try writer.print("7", .{}),
+            .system_default => try writer.print("9", .{}),
+            .ansi_rgb => |_rgb| {
                 try writer.print("8;2;{d};{d};{d}", .{ _rgb[0], _rgb[1], _rgb[2] });
             },
-            .xterm => |_xterm| {
+            .ansi_xterm => |_xterm| {
                 try writer.print("8;5;{d}", .{@intFromEnum(_xterm)});
             },
         }
@@ -273,15 +273,13 @@ pub const Modifiers = packed struct(u8) {
     /// Swap foreground and background colors
     reverse: bool = false,
 
+    pub const empty: @This() = .{};
+
     pub const Underline = enum(u2) {
         none = 0,
         single = 1,
         double = 2,
     };
-
-    pub fn empty(self: *const @This()) bool {
-        return @as(u8, @bitCast(self.*)) == 0;
-    }
 
     pub fn Not(self: *const @This()) Modifiers {
         return @bitCast(~@as(u8, @bitCast(self.*))); 
@@ -312,57 +310,23 @@ pub const Style = struct {
     hyperlink: ?[]const u8 = null,
 
     pub fn eql(self: *const @This(), other: *const @This()) bool {
-        return std.meta.eql(self.mod, other.mod)
+        return self.mod == other.mod
             and std.meta.eql(self.fg, other.fg)
             and std.meta.eql(self.bg, other.bg)
             and std.meta.eql(self.underline_color, other.underline_color)
             and if (self.hyperlink != null and other.hyperlink != null) std.mem.eql(u8, self.hyperlink.?, other.hyperlink.?) else false;
     }
 
-    pub fn new() @This() {
-        return .{};
-    }
-
-    pub fn bold() @This() {
-        return .{ .mod = .{ .bold = true } };
-    }
-
-    /// Strikethrough
-    pub fn crossed() @This() {
-        return .{ .mod = .{ .crossed = true }};
-    }
-
-    pub fn italic() @This() {
-        return .{ .mod = .{ .italic = true }};
-    }
+    pub const empty: @This() = .{};
+    pub const bold: @This() = .{ .mod = .{ .bold = true } };
+    pub const crossed: @This() = .{ .mod = .{ .crossed = true } };
+    pub const italic: @This() = .{ .mod = .{ .italic = true } };
+    pub const overline: @This() = .{ .mod = .{ .overline = true } };
+    pub const blink: @This() = .{ .mod = .{ .blink = true } };
+    pub const reverse: @This() = .{ .mod = .{ .reverse = true } };
 
     pub fn underline(kind: Modifiers.Underline) @This() {
         return .{ .mod = .{ .underline = kind }};
-    }
-
-    pub fn underlineColor(color: Color) @This() {
-        return .{ .underline_color = color };
-    }
-
-    pub fn overline() @This() {
-        return .{ .mod = .{ .overline = true }};
-    }
-
-    pub fn blink() @This() {
-        return .{ .mod = .{ .blink = true }};
-    }
-
-    /// Swap foreground and background colors
-    pub fn reverse() @This() {
-        return .{ .mod = .{ .reverse = true }};
-    }
-
-    pub fn fg(color: Color) @This() {
-        return .{ .fg = color };
-    }
-
-    pub fn bg(color: Color) @This() {
-        return .{ .bg = color };
     }
 
     /// Generate the representation that will reset the styling
@@ -401,7 +365,7 @@ pub const Style = struct {
     }
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (!self.mod.empty() or self.fg != null or self.bg != null) {
+        if (self.mod != Modifiers.empty or self.fg != null or self.bg != null) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
 
@@ -450,17 +414,17 @@ pub const Style = struct {
             if (self.underline_color) |_uc| {
                 if (at_least_one) try writer.print(";", .{});
                 switch (_uc) {
-                    .black => try writer.print("58;5;0", .{}),
-                    .red => try writer.print("58;5;1", .{}),
-                    .green => try writer.print("58;5;2", .{}),
-                    .yellow => try writer.print("58;5;3", .{}),
-                    .blue => try writer.print("58;5;4", .{}),
-                    .magenta => try writer.print("58;5;5", .{}),
-                    .cyan => try writer.print("58;5;6", .{}),
-                    .white => try writer.print("58;5;7", .{}),
-                    .default => try writer.print("59", .{}),
-                    .xterm => |xterm| try writer.print("58;5;{d}", .{ @intFromEnum(xterm) }),
-                    .rgb => |rgb| try writer.print("58;2;{d};{d};{d}", .{ rgb[0], rgb[1], rgb[2] }),
+                    .system_black => try writer.print("58;5;0", .{}),
+                    .system_red => try writer.print("58;5;1", .{}),
+                    .system_green => try writer.print("58;5;2", .{}),
+                    .system_yellow => try writer.print("58;5;3", .{}),
+                    .system_blue => try writer.print("58;5;4", .{}),
+                    .system_magenta => try writer.print("58;5;5", .{}),
+                    .system_cyan => try writer.print("58;5;6", .{}),
+                    .system_white => try writer.print("58;5;7", .{}),
+                    .system_default => try writer.print("59", .{}),
+                    .ansi_xterm => |xterm| try writer.print("58;5;{d}", .{ @intFromEnum(xterm) }),
+                    .ansi_rgb => |rgb| try writer.print("58;2;{d};{d};{d}", .{ rgb[0], rgb[1], rgb[2] }),
                 }
                 at_least_one = true;
             }
@@ -491,56 +455,17 @@ pub const Reset = struct {
     underline_color: bool = false,
     hyperlink: bool = false,
 
-    pub fn new() @This() {
-        return .{};
-    }
-
-    pub fn bold() @This() {
-        return .{ .mod = .{ .bold = true }};
-    }
-
-    pub fn crossed() @This() {
-        return .{ .mod = .{ .crossed = true }};
-    }
-
-    pub fn italic() @This() {
-        return .{ .mod = .{ .italic = true }};
-    }
-
-    pub fn underline() @This() {
-        return .{ .mod = .{ .overline = true }};
-    }
-
-    pub fn overline() @This() {
-        return .{ .mod = .{ .overline = true }};
-    }
-
-    pub fn blink() @This() {
-        return .{ .mod = .{ .blink = true }};
-    }
-
-    pub fn reverse() @This() {
-        return .{ .mod = .{ .reverse = true }};
-    }
-
-    pub fn fg() @This() {
-        return .{ .fg = true };
-    }
-
-    pub fn bg() @This() {
-        return .{ .bg = true };
-    }
-
-    pub fn underlineColor() @This() {
-        return .{ .underline_color = true };
-    }
-
-    pub fn hyperlink() @This() {
-        return .{ .hyperlink = true };
-    }
+    pub const empty: @This() = .{};
+    pub const bold: @This() = .{ .mod = .{ .bold = true } };
+    pub const crossed: @This() = .{ .mod = .{ .crossed = true } };
+    pub const italic: @This() = .{ .mod = .{ .italic = true } };
+    pub const overline: @This() = .{ .mod = .{ .overline = true } };
+    pub const underline: @This() = .{ .mod = .{ .underline = true } };
+    pub const blink: @This() = .{ .mod = .{ .blink = true } };
+    pub const reverse: @This() = .{ .mod = .{ .reverse = true } };
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (!self.mod.empty() or self.fg or self.bg or self.underline_color) {
+        if (self.mod != Modifiers.empty or self.fg or self.bg or self.underline_color) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
 

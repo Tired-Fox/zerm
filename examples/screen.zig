@@ -18,23 +18,23 @@ pub fn main() !void {
     defer utf8_ctx.deinit();
 
     const cols, const rows = try getTermSize();
-    try execute(.Stdout, .{
-        Screen.title("Screen Example"),
+    try execute(.stdout, .{
+        Screen { .title = "Screen Example" },
         .{ "Size: {d} x {d}\n", .{ cols, rows } },
     });
 
-    try execute(.Stdout, .{
+    try execute(.stdout, .{
         "Resize to 30 x 30\n",
-        Screen.resize(30, 30)
+        Screen { .resize = .{ .w = 30, .h = 30 }}
     });
 
     const c, const r = try getTermSize();
-    try execute(.Stdout, .{
+    try execute(.stdout, .{
         .{ "Size: {d} x {d}\n", .{ c, r } },
     });
 
-    try execute(.Stdout, .{
+    try execute(.stdout, .{
         .{ "Resize to {d} x {d}", .{ cols, rows }},
-        Screen.resize(cols, rows)
+        Screen { .resize = .{ .w = cols, .h = rows }}
     });
 }

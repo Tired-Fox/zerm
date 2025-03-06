@@ -7,13 +7,13 @@ pub const event = @import("event.zig");
 
 /// Target where printed commands are written
 pub const Stream = enum(u2) {
-    Stdout,
-    Stderr,
+    stdout,
+    stderr,
 
     pub fn isTty(self: *const @This()) bool {
-        return switch (self) {
-            .Stdout => std.io.getStdOut().isTty(),
-            .Stderr => std.io.getStdErr().isTty(),
+        return switch (self.*) {
+            .stdout => std.io.getStdOut().isTty(),
+            .stderr => std.io.getStdErr().isTty(),
         };
     }
 };
@@ -43,7 +43,7 @@ pub const Stream = enum(u2) {
 ///    }
 /// }
 ///
-/// try execute(.Stdout, .{
+/// try execute(.stdout, .{
 ///     Style { .fg = Color.Green },
 ///     '✓',
 ///     Reset.fg(),
@@ -53,8 +53,8 @@ pub const Stream = enum(u2) {
 /// ```
 pub fn execute(source: Stream, ops: anytype) !void {
     const output = switch (source) {
-        .Stdout => std.io.getStdOut().writer(),
-        .Stderr => std.io.getStdErr().writer(),
+        .stdout => std.io.getStdOut().writer(),
+        .stderr => std.io.getStdErr().writer(),
     };
 
     var buffer = std.io.bufferedWriter(output);
@@ -97,7 +97,7 @@ pub const Queue = std.io.BufferedWriter(4096, std.fs.File.Writer);
 ///    }
 /// }
 ///
-/// const q = queue(.Stdout, .{
+/// const q = queue(.stdout, .{
 ///     Style { .fg = Color.Green },
 ///     '✓',
 ///     Reset.fg(),
@@ -111,8 +111,8 @@ pub const Queue = std.io.BufferedWriter(4096, std.fs.File.Writer);
 /// ```
 pub fn queue(source: Stream, ops: anytype) !Queue {
     const output = switch (source) {
-        .Stdout => std.io.getStdOut().writer(),
-        .Stderr => std.io.getStdErr().writer(),
+        .stdout => std.io.getStdOut().writer(),
+        .stderr => std.io.getStdErr().writer(),
     };
 
     var buffer = std.io.bufferedWriter(output);
@@ -144,7 +144,7 @@ pub fn writeOp(op: anytype, writer: anytype) !void {
         },
         else => {
             switch (@typeInfo(T)) {
-                .Struct => {
+                .@"struct" => {
                     if (@hasDecl(T, "format")) {
                         try writer.print("{s}", .{ op });
                     } else {
