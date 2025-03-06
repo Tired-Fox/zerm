@@ -1,10 +1,10 @@
 const std = @import("std");
-const termz = @import("termz");
+const zerm = @import("zerm");
 
-const styled = termz.style.styled;
-const ifSupportsColor = termz.style.ifSupportsColor;
+const styled = zerm.style.styled;
+const ifSupportsColor = zerm.style.ifSupportsColor;
 
-const execute = termz.execute;
+const execute = zerm.execute;
 
 pub fn main() !void {
     try execute(.stdout, .{

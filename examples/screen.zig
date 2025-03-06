@@ -1,15 +1,15 @@
 const std = @import("std");
-const termz = @import("termz");
+const zerm = @import("zerm");
 
-const Screen = termz.action.Screen;
-const getTermSize = termz.action.getTermSize;
+const Screen = zerm.action.Screen;
+const getTermSize = zerm.action.getTermSize;
 
-const Utf8ConsoleOutput = termz.Utf8ConsoleOutput;
+const Utf8ConsoleOutput = zerm.Utf8ConsoleOutput;
 
-const EventStream = termz.event.EventStream;
-const Key = termz.event.Key;
+const EventStream = zerm.event.EventStream;
+const Key = zerm.event.Key;
 
-const execute = termz.execute;
+const execute = zerm.execute;
 
 pub fn main() !void {
     // This is needed for windows since it wants utf16

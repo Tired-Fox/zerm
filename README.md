@@ -1,4 +1,4 @@
-# Termz
+# Zerm
 
 A fast pure zig implementation of a terminal ansi library. It is heavily inspired by the `rust` crate [`crossterm`](https://docs.rs/crossterm/latest/crossterm/)
 

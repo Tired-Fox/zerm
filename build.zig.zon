@@ -1,7 +1,7 @@
 .{
-    .name = .termz,
+    .name = .zerm,
     .version = "0.0.1",
-    .fingerprint = 0xf17e87d55dbce7fe,
+    .fingerprint = 0x45d090be728b04e1, // Changing this has security and trust implications.
     .minimum_zig_version = "0.14.0",
     .dependencies = .{},
     .paths = .{
