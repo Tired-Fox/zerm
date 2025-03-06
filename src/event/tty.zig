@@ -42,9 +42,10 @@ pub const EventStream = struct {
         }
     }
 
+    /// Parse the next terminal/input event
+    ///
+    /// This method will block until the next event
     pub fn parseEvent(self: *@This()) !?Event {
-        if (!self.pollEvent()) return null;
-
         const stdin = std.io.getStdIn();
         const reader = stdin.reader();
 

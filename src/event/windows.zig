@@ -264,46 +264,45 @@ pub const EventStream = struct {
         return (getNumberOfConsoleInputEvents() catch 0) > 0;
     }
 
-    /// Parse the next console input event
+    /// Parse the next terminal/input event
+    ///
+    /// This method will block until the next event
     pub fn parseEvent(self: *@This()) !?Event {
-        const inputCount = try getNumberOfConsoleInputEvents();
-        if (inputCount != 0) {
-            if (try getSingleInputEvent()) |record| {
-                switch (@as(EventType, @enumFromInt(record.EventType))) {
-                    .key => {
-                        return try handleKeyEvent(record.Event.KeyEvent, &self.surrogate);
-                    },
-                    .mouse => {
-                        defer self.mouse_buttons = .{
-                            .left = record.Event.MouseEvent.dwButtonState.left(),
-                            .right = record.Event.MouseEvent.dwButtonState.right(),
-                            .middle = record.Event.MouseEvent.dwButtonState.middle(),
-                        };
+        if (try getSingleInputEvent()) |record| {
+            switch (@as(EventType, @enumFromInt(record.EventType))) {
+                .key => {
+                    return try handleKeyEvent(record.Event.KeyEvent, &self.surrogate);
+                },
+                .mouse => {
+                    defer self.mouse_buttons = .{
+                        .left = record.Event.MouseEvent.dwButtonState.left(),
+                        .right = record.Event.MouseEvent.dwButtonState.right(),
+                        .middle = record.Event.MouseEvent.dwButtonState.middle(),
+                    };
 
-                        if (handleMouseEvent(record.Event.MouseEvent, &self.mouse_buttons)) |kind| {
-                            return Event {
-                                .mouse = .{
-                                    .col = @intCast(record.Event.MouseEvent.dwMousePosition.x),
-                                    .row = @intCast(record.Event.MouseEvent.dwMousePosition.y),
-                                    .kind = kind,
-                                }
-                            };
-                        }
-                    },
-                    .window_buffer_size => {
-                        const size = record.Event.WindowBufferSizeEvent.dwSize;
+                    if (handleMouseEvent(record.Event.MouseEvent, &self.mouse_buttons)) |kind| {
                         return Event {
-                            .resize = .{ @intCast(size.x), @intCast(size.y) }
+                            .mouse = .{
+                                .col = @intCast(record.Event.MouseEvent.dwMousePosition.x),
+                                .row = @intCast(record.Event.MouseEvent.dwMousePosition.y),
+                                .kind = kind,
+                            }
                         };
-                    },
-                    .focus => {
-                        return Event {
-                            .focus = record.Event.FocusEvent.bSetFocus == 1
-                        };
-                    },
-                    else => {
-                        // Ignore Menu Record events
                     }
+                },
+                .window_buffer_size => {
+                    const size = record.Event.WindowBufferSizeEvent.dwSize;
+                    return Event {
+                        .resize = .{ @intCast(size.x), @intCast(size.y) }
+                    };
+                },
+                .focus => {
+                    return Event {
+                        .focus = record.Event.FocusEvent.bSetFocus == 1
+                    };
+                },
+                else => {
+                    // Ignore Menu Record events
                 }
             }
         }
