@@ -233,8 +233,6 @@ pub fn getSingleInputEvent() !?INPUT_RECORD {
 }
 
 pub const EventStream = struct {
-    alloc: std.mem.Allocator,
-
     surrogate: Surrogate = .{},
     mouse_buttons: MouseButtonStates = .{},
 
@@ -250,8 +248,8 @@ pub const EventStream = struct {
         x2: bool = false,
     };
 
-    pub fn init(alloc: std.mem.Allocator) @This() {
-        return .{ .alloc = alloc };
+    pub fn init(_: std.mem.Allocator) @This() {
+        return .{};
     }
 
     pub fn deinit(self: *@This()) void {

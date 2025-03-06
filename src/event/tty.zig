@@ -57,35 +57,22 @@ pub const EventStream = struct {
                     _ = try reader.read(&buff);
                     switch (buff[0]) {
                         '[' => return try self.parseCsi(reader),
-                        'O' => {
-                            var buffer = std.ArrayList(u8).init(self.alloc);
-                            defer buffer.deinit();
+                        'O' => if (self.pollEvent()) {
+                            _ = try reader.read(&buff);
+                            switch (buff[0]) {
+                                'D' => return Event { .key = .{ .code = .left }},
+                                'C' => return Event { .key = .{ .code = .right }},
+                                'A' => return Event { .key = .{ .code = .up }},
+                                'B' => return Event { .key = .{ .code = .down }},
+                                'H' => return Event { .key = .{ .code = .home }},
+                                'F' => return Event { .key = .{ .code = .end }},
 
-
-                            while (self.pollEvent()) {
-                                _ = try reader.read(&buff);
-                                try buffer.append(buff[0]);
-                                if (isSequenceEnd(buff[0])) break;
-                            }
-
-                            const sequence = buffer.items;
-
-                            if (sequence.len == 1) {
-                                switch (sequence[0]) {
-                                    'D' => return Event { .key = .{ .code = .left }},
-                                    'C' => return Event { .key = .{ .code = .right }},
-                                    'A' => return Event { .key = .{ .code = .up }},
-                                    'B' => return Event { .key = .{ .code = .down }},
-                                    'H' => return Event { .key = .{ .code = .home }},
-                                    'F' => return Event { .key = .{ .code = .end }},
-
-                                    // F1 - F4
-                                    'P' => return Event { .key = .{ .code = .f(1) }},
-                                    'Q' => return Event { .key = .{ .code = .f(2) }},
-                                    'R' => return Event { .key = .{ .code = .f(3) }},
-                                    'S' => return Event { .key = .{ .code = .f(4) }},
-                                    else => {}
-                                }
+                                // F1 - F4
+                                'P' => return Event { .key = .{ .code = .f(1) }},
+                                'Q' => return Event { .key = .{ .code = .f(2) }},
+                                'R' => return Event { .key = .{ .code = .f(3) }},
+                                'S' => return Event { .key = .{ .code = .f(4) }},
+                                else => {}
                             }
                         },
                         0x1B => return Event{ .key = .{ .code = .esc } },
