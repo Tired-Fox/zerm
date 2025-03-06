@@ -264,6 +264,7 @@ pub const Color = union(enum) {
 
 pub const Modifiers = packed struct(u8) {
     bold: bool = false,
+    /// Either `single` or `double`
     underline: Underline = .none,
     overline: bool = false,
     italic: bool = false,
@@ -281,32 +282,29 @@ pub const Modifiers = packed struct(u8) {
         double = 2,
     };
 
-    pub fn Not(self: *const @This()) Modifiers {
-        return @bitCast(~@as(u8, @bitCast(self.*))); 
+    pub fn from(value: u8) @This() {
+        return @bitCast(value);
     }
 
-    pub fn And(self: *const @This(), other: *const @This()) Modifiers {
-        return @bitCast(@as(u8, @bitCast(self.*)) & @as(u8, @bitCast(other.*))); 
-    }
-
-    pub fn Or(self: *const @This(), other: *const @This()) Modifiers {
-        return @bitCast(@as(u8, @bitCast(self.*)) | @as(u8, @bitCast(other.*))); 
-    }
-
-    pub fn Xor(self: *const @This(), other: *const @This()) Modifiers {
-        return @bitCast(@as(u8, @bitCast(self.*)) ^ @as(u8, @bitCast(other.*))); 
+    pub fn bits(self: *const @This()) u8 {
+        return @bitCast(self.*);
     }
 };
 
 /// Styling for ansi text
 pub const Style = struct {
+    /// Text modifier like `bold`, `italic`, etc.
     mod: Modifiers = .{},
+    /// Foreground color
     fg: ?Color = null,
+    /// Background color
     bg: ?Color = null,
+    /// Underline color
+    ///
+    /// This is mostly supported but non `Windows` terminals
     underline_color: ?Color = null,
 
-    /// Apply a clickable hyperlink to the text that
-    /// this style is applied too.
+    /// Apply a clickable hyperlink
     hyperlink: ?[]const u8 = null,
 
     pub fn eql(self: *const @This(), other: *const @This()) bool {
@@ -340,23 +338,11 @@ pub const Style = struct {
         };
     }
 
-    /// Merge two styles together where `other` will replace `self`
-    /// where the values overlap.
-    pub fn And(self: *const @This(), other: *const @This()) Style {
-        return . {
-            .mod = self.mod.And(&other.mod),
-            .fg = other.fg orelse self.fg,
-            .bg = other.bg orelse self.bg, 
-            .underline_color = other.underline_color orelse self.underline_color,
-            .hyperlink = other.hyperlink orelse self.hyperlink,
-        };
-    }
-
     /// Merge two styles together where `other` will **NOT** replace `self`
     /// where the values overlap.
-    pub fn Or(self: *const @This(), other: *const @This()) Style {
+    pub fn merge(self: *const @This(), other: *const @This()) Style {
         return . {
-            .mod = self.mod.Or(&other.mod),
+            .mod = .from(self.mod.bits() | other.mod.bits()),
             .fg = self.fg orelse other.fg,
             .bg = self.bg orelse other.bg, 
             .underline_color = self.underline_color orelse other.underline_color,
@@ -527,6 +513,12 @@ pub const Reset = struct {
     }
 };
 
+/// Wrapper around a writtable operator (command) to apply a style
+///
+/// Supported types:
+///     - `[]const u8`
+///     - `u8`, `u21`, `u32`, `comptime_int`
+///     - Any type that implements `format` to be use with the string formatter
 pub fn Styled(T: type) type {
     return struct{
         value: T,
@@ -547,6 +539,12 @@ pub fn Styled(T: type) type {
     };
 }
 
+/// Create a styled writtable operator
+///
+/// Supported types:
+///     - `[]const u8`
+///     - `u8`, `u21`, `u32`, `comptime_int`
+///     - Any type that implements `format` to be use with the string formatter
 pub fn styled(value: anytype, style: Style) Styled(@TypeOf(value)) {
     return .{
         .value = value,
@@ -554,6 +552,13 @@ pub fn styled(value: anytype, style: Style) Styled(@TypeOf(value)) {
     };
 }
 
+/// Wrapper around a writtable operator (command) to apply a style
+/// only if the terminal supports color output
+///
+/// Supported types:
+///     - `[]const u8`
+///     - `u8`, `u21`, `u32`, `comptime_int`
+///     - Any type that implements `format` to be use with the string formatter
 pub fn SupportsColor(T: type) type {
     return struct{
         value: T,
@@ -583,6 +588,13 @@ pub fn SupportsColor(T: type) type {
     };
 }
 
+/// Create a writtable operator that styles it's content only if
+/// the terminal supports color
+///
+/// Supported types:
+///     - `[]const u8`
+///     - `u8`, `u21`, `u32`, `comptime_int`
+///     - Any type that implements `format` to be use with the string formatter
 pub fn ifSupportsColor(stream: Stream, value: anytype, style: Style) SupportsColor(@TypeOf(value)) {
     return .{
         .value = value,

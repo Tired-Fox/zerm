@@ -1,7 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-/// Representation of keyboard input
 pub const KeyCode = union(enum) {
     pub const backspace: @This() = .{ ._backspace = {} };
     pub const enter: @This() = .{ ._enter = {}};
@@ -56,22 +55,27 @@ pub const KeyCode = union(enum) {
     _media: Media,
     _modifier: Modifier,
 
+    /// F key
     pub fn f(value: u8) @This() {
         return .{ ._f = value };
     }
 
+    /// Media key
     pub fn media(value: Media) @This() {
         return .{ ._media = value };
     }
 
+    /// Modifier key
     pub fn modifier(value: Modifier) @This() {
         return .{ ._modifier = value };
     }
 
+    /// Character (text) key
     pub fn char(value: u21) @This() {
         return .{ ._char = value };
     }
 
+    /// Media keys
     pub const Media = enum {
         play,
         pause,
@@ -88,6 +92,7 @@ pub const KeyCode = union(enum) {
         mute_volume,
     };
 
+    /// Modifier key
     pub const Modifier = enum {
         left_shift,
         left_control,
@@ -115,26 +120,21 @@ pub const Modifiers = packed struct(u6) {
     meta: bool = false,
     hyper: bool = false,
 
-    pub fn merge(a: @This(), b: @This()) @This() {
-        return .{
-            .alt = a.alt or b.alt,
-            .ctrl = a.ctrl or b.ctrl,
-            .shift = a.shift or b.shift,
-            .super = a.super or b.super,
-            .meta = a.meta or b.meta,
-            .hyper = a.hyper or b.hyper,
-        };
-    }
-};
+    pub const empty: @This() = .{};
+    pub const Alt: u6 = 1;
+    pub const Ctrl: u6 = 2;
+    pub const Shift: u6 = 4;
+    pub const Super: u6 = 8;
+    pub const Meta: u6 = 16;
+    pub const Hyper: u6 = 32;
 
-const Utils = switch (builtin.target.os.tag) {
-    .windows => struct {
-        extern "kernel32" fn GetNumberOfConsoleInputEvents(
-            hConsoleInput: std.os.windows.HANDLE,
-            lpcNumberOfEvents: *std.os.windows.DWORD
-        ) callconv(.Win64) std.os.windows.BOOL;
-    },
-    else => struct {}
+    pub inline fn from(value: u6) @This() {
+        return @bitCast(value);
+    }
+
+    pub inline fn bits(self: *const @This()) u6 {
+        return @bitCast(self.*);
+    }
 };
 
 /// Read a line from the terminal
@@ -151,39 +151,43 @@ pub fn readLine(allocator: std.mem.Allocator, max_size: usize) !?[]u8 {
     return readUntil(allocator, '\n', max_size);
 }
 
-/// Keyboard event
 pub const KeyEvent = struct {
     code: KeyCode,
-    modifiers: Modifiers = .{},
+    modifiers: Modifiers = .empty,
     kind: Kind = .press,
-    state: State = .{},
+    state: State = .empty,
 
-    pub fn matches(self: *const @This(), match: KeyMatch) bool {
-        if (match.code) |code| {
+    pub fn match(self: *const @This(), pattern: Match) bool {
+        if (!std.meta.eql(pattern.kind, self.kind)) return false;
+
+        if (pattern.code) |code| {
             if (!std.meta.eql(code, self.code)) return false;
         }
 
-        if (match.alt and !self.modifiers.alt) return false;
-        if (match.ctrl and !self.modifiers.ctrl) return false;
-        if (match.shift and !self.modifiers.shift) return false;
-        if (match.super and !self.modifiers.super) return false;
-        if (match.meta and !self.modifiers.meta) return false;
-        if (match.hyper and !self.modifiers.hyper) return false;
+        if (pattern.alt and !self.modifiers.alt) return false;
+        if (pattern.ctrl and !self.modifiers.ctrl) return false;
+        if (pattern.shift and !self.modifiers.shift) return false;
+        if (pattern.super and !self.modifiers.super) return false;
+        if (pattern.meta and !self.modifiers.meta) return false;
+        if (pattern.hyper and !self.modifiers.hyper) return false;
 
-        if (match.caps_lock and !self.state.caps_lock) return false;
-        if (match.keypad and !self.state.keypad) return false;
-        if (match.num_lock and !self.state.num_lock) return false;
-
-        if (match.kind) |kind| {
-            if (!std.meta.eql(kind, self.kind)) return false;
-        }
+        if (pattern.caps_lock and !self.state.caps_lock) return false;
+        if (pattern.keypad and !self.state.keypad) return false;
+        if (pattern.num_lock and !self.state.num_lock) return false;
 
         return true;
     }
 
-    pub const KeyMatch = struct {
+    pub fn matches(self: *const @This(), patterns: []const Match) bool {
+        for (patterns) |pattern| {
+            if (self.match(pattern)) return true;
+        }
+        return false;
+    }
+
+    pub const Match = struct {
         code: ?KeyCode = null,
-        kind: ?Kind = null,
+        kind: Kind = .press,
 
         keypad: bool = false,
         caps_lock: bool = false,
@@ -204,29 +208,26 @@ pub const KeyEvent = struct {
     };
 
     pub const State = packed struct(u3) {
-        pub const KEYPAD: @This() = .{ .keypad = true };
-        pub const CAPS_LOCK: @This() = .{ .caps_lock = true };
-        pub const NUM_LOCK: @This() = .{ .num_lock = true };
-
         keypad: bool = false,
         caps_lock: bool = false,
         num_lock: bool = false,
 
-        pub fn none(self: *const @This()) bool {
-            return @as(u3, @bitCast(self)) == 0;
+        pub const empty: @This() = .{};
+
+        pub const Keypad: u3 = 1;
+        pub const CapsLock: u3 = 2;
+        pub const NumLock: u3 = 4;
+
+        pub inline fn from(value: u3) @This() {
+            return @bitCast(value);
         }
 
-        pub fn Or(self: @This(), other: @This()) @This() {
-            return .{
-                .keypad = self.keypad or other.keypad,
-                .caps_lock = self.caps_lock or other.caps_lock,
-                .num_lock = self.num_lock or other.num_lock,
-            };
+        pub inline fn bits(self: *const @This()) u3 {
+            return @bitCast(self.*);
         }
     };
 };
 
-/// Supported mouse button events
 pub const MouseButton = enum(u4) {
     left,
     middle,
@@ -241,15 +242,16 @@ pub const MouseButton = enum(u4) {
 pub const ButtonState = enum(u2) { pressed, released };
 pub const ScrollDirection = enum(u2) { up, down, left, right };
 
-pub const EnhancementFlags = packed struct(u8) {
-    disambiguate_escape_codes: bool = false,
-    report_event_types: bool = false,
-    report_alternate_keys: bool = false,
-    report_all_keys_as_escape_codes: bool = false,
-    // Not yet supported
-    // report_associated_text: bool = false,
-    _m: u4 = 0,
-};
+// TODO: Implement settings and getting these flags on unix systems
+// pub const EnhancementFlags = packed struct(u8) {
+//     disambiguate_escape_codes: bool = false,
+//     report_event_types: bool = false,
+//     report_alternate_keys: bool = false,
+//     report_all_keys_as_escape_codes: bool = false,
+//     // Not yet supported
+//     // report_associated_text: bool = false,
+//     _m: u4 = 0,
+// };
 
 pub const MouseEventKind = union(enum) {
     pub const scroll_down: @This() = .{ .scroll = .down };
@@ -331,16 +333,8 @@ pub const Event = union(enum) {
     cursor: std.meta.Tuple(&.{ u16, u16 })
 };
 
+/// Instance that can be used to stream and poll
+/// for terminal and input events
 pub const EventStream = 
     if (builtin.os.tag == .windows) @import("./event/windows.zig").EventStream
     else @import("./event/tty.zig").EventStream;
-
-test "event::Key::eql" {
-    try std.testing.expect(KeyCode.Esc.eql(KeyCode.Esc));
-    try std.testing.expect(KeyCode.char('d').eql(KeyCode.char('d')));
-    try std.testing.expect(!KeyCode.char('d').eql(KeyCode.Esc));
-}
-
-test "event::Key::char" {
-    try std.testing.expectEqual(KeyCode.char('d'), KeyCode { .char = 'd' });
-}

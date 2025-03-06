@@ -5,7 +5,7 @@ pub const style = @import("style.zig");
 pub const action = @import("action.zig");
 pub const event = @import("event.zig");
 
-/// Target where printed commands are written
+/// Available output streams
 pub const Stream = enum(u2) {
     stdout,
     stderr,
@@ -125,18 +125,16 @@ pub fn queue(source: Stream, ops: anytype) !Queue {
     return buffer;
 }
 
+/// Write the value, if it's type is supported, to the provider writer
+///
+/// Supported types:
+///     - `[]const u8`
+///     - `u8`, `u21`, `u32`, `comptime_int`
+///     - Any type that implements `format` to be use with the string formatter
 pub fn writeOp(op: anytype, writer: anytype) !void {
     const T = @TypeOf(op);
     switch (T) {
         u8 => try writer.writeByte(op),
-        u16 => {
-            var it = std.unicode.Utf16LeIterator.init([1]u16{ op });
-            while (try it.nextCodepoint()) |cp| {
-                var buff: [4]u8 = undefined;
-                const length = try std.unicode.utf8Encode(cp, &buff);
-                try writer.writeAll(buff[0..length]);
-            }
-        },
         u21, u32, comptime_int => {
             var buff: [4]u8 = [_]u8{0}**4;
             const length = try std.unicode.utf8Encode(@intCast(op), &buff);
@@ -184,16 +182,6 @@ pub const Utf8ConsoleOutput = struct {
             _ = std.os.windows.kernel32.SetConsoleOutputCP(self.original);
         }
     }
-};
-
-const utils = switch (@import("builtin").target.os.tag) {
-    .windows => struct {
-        extern "kernel32" fn GetNumberOfConsoleInputEvents(
-            hConsoleInput: std.os.windows.HANDLE,
-            lpcNumberOfEvents: *std.os.windows.DWORD
-        ) callconv(.winapi) std.os.windows.BOOL;
-    },
-    else => struct {}
 };
 
 test {

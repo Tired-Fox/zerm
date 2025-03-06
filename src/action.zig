@@ -150,6 +150,7 @@ const Utils = switch (@import("builtin").target.os.tag) {
     }
 };
 
+/// State that is managed when setting and restoring terminal modes
 const Mode = switch(@import("builtin").target.os.tag) {
     .windows => struct {
         mutex: std.Thread.Mutex = std.Thread.Mutex {},
@@ -201,22 +202,6 @@ pub const Cursor = struct {
         bar_blink,
         user,
     };
-
-    /// Save the cursor position
-    pub const Save: @This() = .{ .save = true };
-    /// Restore the previously saved cursor position
-    pub const Restore: @This() = .{ .restore = true };
-    /// Hide the cursor
-    pub const Hide: @This() = .{ .visibility = .hidden };
-    /// Show the hidden cursor
-    pub const Show: @This() = .{ .visibility = .visible };
-    pub const Blink: @This() = .{ .blink = true };
-    pub const NoBlink: @This() = .{ .blink = false };
-
-    /// Change the shape of the cursor
-    pub fn Shape(s: CursorShape) @This() {
-        return .{ .shape = s };
-    }
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         if (value.save) try writer.print("\x1b[s", .{});
@@ -286,25 +271,25 @@ pub const Cursor = struct {
 
 /// Defines how much of something to erase
 pub const Erase = enum(u2) {
-    ToEnd = 0,
-    FromBeginning = 1,
-    All = 2,
+    to_end = 0,
+    from_beginning = 1,
+    all = 2,
 };
 
 /// Screen/Canvas commands
 pub const Screen = union(enum) {
     /// Apply a soft reset to the setup of the screen
-    pub const SoftReset: @This() = .{ .soft_reset = {} };
+    pub const soft_reset: @This() = .{ .soft_reset_screen = {} };
     /// Save the current screen
-    pub const Save: @This() = .{ .save = {} };
+    pub const save: @This() = .{ .save_screen = {} };
     /// Restore the previously saved screen
-    pub const Restore: @This() = .{ .restore = {} };
+    pub const restore: @This() = .{ .restore_screen = {} };
 
     /// Enter an alternate buffer
-    pub const EnterAlternateBuffer: @This() = .{ .enter_alternate_buffer = {} };
+    pub const enter_alternate_buffer: @This() = .{ .enter_alternate_screen_buffer = {} };
     /// Leave the current alternate buffer, restoring the previous
     /// buffers text.
-    pub const LeaveAlternateBuffer: @This() = .{ .leave_alternate_buffer = {} };
+    pub const leave_alternate_buffer: @This() = .{ .leave_alternate_screen_buffer = {} };
 
     /// Scroll the screen up
     scroll_up: u16,
@@ -318,17 +303,17 @@ pub const Screen = union(enum) {
     resize: struct { w: u16, h: u16 },
 
     /// Apply a soft reset to the setup of the screen
-    soft_reset: void,
+    soft_reset_screen: void,
     /// Save the current screen
-    save: void,
+    save_screen: void,
     /// Restore the previously saved screen
-    restore: void,
+    restore_screen: void,
 
     /// Enter an alternate buffer
-    enter_alternate_buffer: void,
+    enter_alternate_screen_buffer: void,
     /// Leave the current alternate buffer, restoring the previous
     /// buffers text.
-    leave_alternate_buffer: void,
+    leave_alternate_screen_buffer: void,
 
     /// Enable terminal raw mode
     ///
@@ -396,6 +381,7 @@ pub const Screen = union(enum) {
         }
     }
 
+    /// Check if the terminal is in `raw mode`
     pub fn isRawModeEnabled() bool {
         switch(@import("builtin").target.os.tag) {
             .windows => {
@@ -423,15 +409,15 @@ pub const Screen = union(enum) {
             .scroll_down => |u| try writer.print("\x1b[{d}T", .{u}),
             .erase => |e| try writer.print("\x1b[{d}J", .{@intFromEnum(e)}),
 
-            .soft_reset => try writer.print("\x1b[!p", .{}),
+            .soft_reset_screen => try writer.print("\x1b[!p", .{}),
             .title => |t| try writer.print("\x1b]0;{s}\x07", .{t}),
             .resize => |r| try writer.print("\x1b[8;{d};{d}t", .{ r.h, r.w }),
 
-            .save => try writer.print("\x1b[47h", .{}),
-            .restore => try writer.print("\x1b[47l", .{}),
+            .save_screen => try writer.print("\x1b[47h", .{}),
+            .restore_screen => try writer.print("\x1b[47l", .{}),
 
-            .enter_alternate_buffer => try writer.print("\x1b[?1049h", .{}),
-            .leave_alternate_buffer => try writer.print("\x1b[?1049l", .{}),
+            .enter_alternate_screen_buffer => try writer.print("\x1b[?1049h", .{}),
+            .leave_alternate_screen_buffer => try writer.print("\x1b[?1049l", .{}),
         }
     }
 };
@@ -484,23 +470,23 @@ pub const Character = union(enum) {
 /// and sends and input ansi sequences.
 pub const Capture = enum {
     /// Enable mouse events
-    EnableMouse,
+    enable_mouse,
     /// Disable mouse events
-    DisableMouse,
+    disable_mouse,
     /// Enable focus events
-    EnableFocus,
+    enable_focus,
     /// Disable focus events
-    DisableFocus,
+    disable_focus,
     /// Enable custom handling for content that is pasted
     /// into the terminal
-    EnableBracketedPaste,
+    enable_bracketed_paste,
     /// Disable custom handling for content that is pasted
     /// into the terminal
-    DisableBracketedPaste,
+    disable_bracketed_paste,
 
     pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         switch(value) {
-            .EnableMouse => {
+            .enable_mouse => {
                 switch(@import("builtin").target.os.tag) {
                     .windows => {
                         MODE.mutex.lock();
@@ -530,7 +516,7 @@ pub const Capture = enum {
                     else => try writer.print("\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1015h\x1b[?1006h", .{}),
                 }
             },
-            .DisableMouse => {
+            .disable_mouse => {
                 switch(@import("builtin").target.os.tag) {
                     .windows => {
                         MODE.mutex.lock();
@@ -545,10 +531,10 @@ pub const Capture = enum {
                     else => try writer.print("\x1b[?1006l\x1b[?1015l\x1b[?1003h\x1b[?1002l\x1b[?1000l", .{}),
                 }
             },
-            .EnableFocus => try writer.print("\x1b[?1004h", .{}),
-            .DisableFocus => try writer.print("\x1b[?1004l", .{}),
-            .EnableBracketedPaste => try writer.print("\x1b[?2004h", .{}),
-            .DisableBracketedPaste => try writer.print("\x1b[?2004h", .{}),
+            .enable_focus => try writer.print("\x1b[?1004h", .{}),
+            .disable_focus => try writer.print("\x1b[?1004l", .{}),
+            .enable_bracketed_paste => try writer.print("\x1b[?2004h", .{}),
+            .disable_bracketed_paste => try writer.print("\x1b[?2004h", .{}),
         }
     }
 };
@@ -643,28 +629,28 @@ pub fn getTermSizePixels() !std.meta.Tuple(&[_]type{ u16, u16 }) {
 
 test "action::Capture::format" {
     if (@import("builtin").target.os.tag != .windows) {
-        var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableMouse });
+        var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.enable_mouse });
         try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1015h\x1b[?1006h"));
         std.testing.allocator.free(format);
 
-        format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.DisableMouse });
+        format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.disable_mouse });
         try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1006l\x1b[?1015l\x1b[?1003h\x1b[?1002l\x1b[?1000l"));
         std.testing.allocator.free(format);
     }
 
-    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableFocus });
+    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.enable_focus });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1004h"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.DisableFocus });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.disable_focus });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[?1004l"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.EnableBracketedPaste });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.enable_bracketed_paste });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[?2004h"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.DisableBracketedPaste });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Capture.disable_bracketed_paste });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[?2004l"));
     std.testing.allocator.free(format);
 }
@@ -734,59 +720,59 @@ test "action::Screen::format" {
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[47l"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.scroll_up(1) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen{ .scroll_up = 1 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[1S"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.scroll_down(2) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen{ .scroll_down = 2 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[2T"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.erase(.ToEnd) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen{ .erase = .to_end} });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[0J"));
     std.testing.allocator.free(format);
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.erase(.FromBeginning) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen{ .erase = .from_beginning } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[1J"));
     std.testing.allocator.free(format);
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.erase(.All) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen{ .erase = .all } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[2J"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen.title("test title") });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Screen{ .title = "test title" } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b]0;test title\x07"));
     std.testing.allocator.free(format);
 }
 
 test "action::Line::format" {
-    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line.insert(1) });
+    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line{ .insert = 1 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[1L"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line.delete(2) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line{ .delete = 2 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[2M"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line.erase(.ToEnd) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line{ .erase = .to_end } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[0K"));
     std.testing.allocator.free(format);
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line.erase(.FromBeginning) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line{ .erase = .from_beginning } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[1K"));
     std.testing.allocator.free(format);
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line.erase(.All) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Line{ .erase = .all } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[2K"));
     std.testing.allocator.free(format);
 }
 
 test "action::Character::format" {
-    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Character.insert(1) });
+    var format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Character{ .insert = 1 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[1@"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Character.delete(2) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Character{ .delete = 2 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[2P"));
     std.testing.allocator.free(format);
 
-    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Character.erase(3) });
+    format = try std.fmt.allocPrint(std.testing.allocator, "{}", .{ Character{ .erase = 3 } });
     try std.testing.expect(std.mem.eql(u8, format, "\x1b[3X"));
     std.testing.allocator.free(format);
 }

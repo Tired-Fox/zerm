@@ -1,6 +1,5 @@
 /// This is a port of the rust crate `supports-color`
 /// https://github.com/zkat/supports-color
-///
 
 const std = @import("std");
 const Stream = @import("root.zig").Stream;
@@ -54,6 +53,7 @@ fn checkAnsiColor(term: ?[]const u8) bool {
     }
 }
 
+/// The terminals color support based on environment variables
 pub const ColorLevel = struct {
     level: usize,
     has_basic: bool = false,
@@ -113,10 +113,6 @@ fn supportsColor(stream: Stream) usize {
     return 0;
 }
 
-pub fn on(stream: Stream) ?ColorLevel {
-    return ColorLevel.translateLevel(supportsColor(stream));
-}
-
 const ColorOnce = union(enum) {
     unset: void,
     set: ?ColorLevel,
@@ -131,11 +127,6 @@ const ColorOnce = union(enum) {
         }
     }
 };
-
-var COLOR_LEVEL_CACHE: [2]ColorOnce = [_]ColorOnce{.{ .unset = {}}, .{ .unset = {}}};
-pub fn onCached(stream: Stream) ?ColorLevel {
-    return COLOR_LEVEL_CACHE[@intFromEnum(stream)].getOrInit(stream);
-}
 
 /// Port of rust's is_ci crate: https://docs.rs/is_ci/latest/src/is_ci/lib.rs.html#25-66
 fn isCi(map: *const std.process.EnvMap) bool {
@@ -183,4 +174,18 @@ fn isCi(map: *const std.process.EnvMap) bool {
         or map.get("RENDER") != null
         or map.get("SAIL_CI") != null
         or map.get("SHIPPABLE") != null;
+}
+
+/// Get the [`ColorLevel`] based on a specific output stream
+pub fn on(stream: Stream) ?ColorLevel {
+    return ColorLevel.translateLevel(supportsColor(stream));
+}
+
+var COLOR_LEVEL_CACHE: [2]ColorOnce = [_]ColorOnce{.{ .unset = {}}, .{ .unset = {}}};
+/// Get the cached [`ColorLevel`] based on a specific output stream
+///
+/// If the color level is expected to change or the value should be calculated each call
+/// use [`on`] instead.
+pub fn onCached(stream: Stream) ?ColorLevel {
+    return COLOR_LEVEL_CACHE[@intFromEnum(stream)].getOrInit(stream);
 }

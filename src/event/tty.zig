@@ -340,7 +340,7 @@ pub const EventStream = struct {
                     .key = .{
                         .code = keycode,
                         .modifiers = modifiers,
-                        .state = key_state.Or(state),
+                        .state = .from(key_state.bits() | state.bits()),
                         .kind = kind
                     }
                 };
@@ -683,7 +683,7 @@ fn translateFunctionalKeyCode(codepoint: u21) ?std.meta.Tuple(&[_]type{ KeyCode,
     };
 
     if (key) |k| {
-        return .{ k, KeyEvent.State.KEYPAD };
+        return .{ k, KeyEvent.State { .keypad = true } };
     }
 
     key = switch (codepoint) {

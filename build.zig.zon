@@ -1,6 +1,6 @@
 .{
     .name = .termz,
-    .version = "0.0.0",
+    .version = "0.0.1",
     .fingerprint = 0xf17e87d55dbce7fe,
     .minimum_zig_version = "0.14.0",
     .dependencies = .{},

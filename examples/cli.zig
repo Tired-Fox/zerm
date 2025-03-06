@@ -28,7 +28,7 @@ pub fn main() !void {
         "Hello, ",
         Reset { .fg = true },
 
-        Cursor.Save,
+        Cursor { .save = true  },
         Style { .fg = .magenta },
         "world!\n",
         Reset { .fg = true },
@@ -51,7 +51,7 @@ pub fn main() !void {
     }
 
     try execute(.stdout, .{
-        Line{ .erase = .FromBeginning },
+        Line{ .erase = .from_beginning },
         '\r',
         Style { .fg = .green },
         '✓',
@@ -62,8 +62,8 @@ pub fn main() !void {
     try execute(.stdout, .{
         Screen { .title = "Hello Everyone" },
 
-        Cursor.Restore,
-        Line { .erase = .ToEnd },
+        Cursor { .restore = true  },
+        Line { .erase = .to_end },
 
         Style { .fg = .yellow },
         "everyone!",
@@ -75,10 +75,10 @@ pub fn main() !void {
     errdefer _ = Screen.disableRawMode() catch { std.log.err("error disabling raw mode", .{}); };
 
     try execute(.stdout, .{
-        Screen.EnterAlternateBuffer,
-        Capture.EnableMouse,
-        Capture.EnableFocus,
-        Capture.EnableBracketedPaste,
+        Screen.enter_alternate_buffer,
+        Capture.enable_mouse,
+        Capture.enable_focus,
+        Capture.enable_bracketed_paste,
         Cursor { .col = 5, .row = 5, .up = 2, .left = 2 },
         "Press 'ctrl+c' to quit:\r\n"
     });
@@ -94,8 +94,10 @@ pub fn main() !void {
             switch (evt) {
                 .key => |ke| {
                     std.log.debug("{any}\r", .{ ke });
-                    if (ke.matches(.{ .code = .char('c'), .ctrl = true })) break;
-                    if (ke.matches(.{ .code = .char('q') })) break;
+                    if (ke.matches(&.{
+                        .{ .code = .char('c'), .ctrl = true },
+                        .{ .code = .char('q') },
+                    })) break;
                 },
                 .mouse => |me| {
                     std.log.debug("{any}\r", .{ me });
@@ -108,10 +110,10 @@ pub fn main() !void {
     }
 
     try execute(.stdout, .{
-        Capture.DisableMouse,
-        Capture.DisableFocus,
-        Capture.DisableBracketedPaste,
-        Screen.LeaveAlternateBuffer,
+        Capture.disable_mouse,
+        Capture.disable_focus,
+        Capture.disable_bracketed_paste,
+        Screen.leave_alternate_buffer,
     });
 
     try Screen.disableRawMode();
