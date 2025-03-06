@@ -234,11 +234,11 @@ pub const Color = union(enum) {
     ansi_xterm: XTerm,
 
     pub fn rgb(r: u8, g: u8, b: u8) @This() {
-        return .{ .rgb = .{ r, g, b } };
+        return .{ .ansi_rgb = .{ r, g, b } };
     }
 
     pub fn xterm(xt: XTerm) @This() {
-        return .{ .xterm = xt };
+        return .{ .ansi_xterm = xt };
     }
 
     pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
