@@ -50,29 +50,29 @@ pub const KeyCode = union(enum) {
     _menu,
     _keypad_begin,
 
-    _f: u8,
-    _char: u21,
-    _media: Media,
-    _modifier: Modifier,
+    function: u8,
+    character: u21,
+    multimedia: Media,
+    modifier: Modifier,
 
     /// F key
     pub fn f(value: u8) @This() {
-        return .{ ._f = value };
+        return .{ .function = value };
     }
 
     /// Media key
     pub fn media(value: Media) @This() {
-        return .{ ._media = value };
+        return .{ .multimedia = value };
     }
 
     /// Modifier key
-    pub fn modifier(value: Modifier) @This() {
-        return .{ ._modifier = value };
+    pub fn mod(value: Modifier) @This() {
+        return .{ .modifier = value };
     }
 
     /// Character (text) key
     pub fn char(value: u21) @This() {
-        return .{ ._char = value };
+        return .{ .character = value };
     }
 
     /// Media keys
