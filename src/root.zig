@@ -67,8 +67,6 @@ pub fn execute(source: Stream, ops: anytype) !void {
     try buffer.flush();
 }
 
-pub const Queue = std.io.BufferedWriter(4096, std.fs.File.Writer);
-
 /// Run each command in the arguments
 ///
 /// All commands that print to the `source` will
@@ -97,7 +95,8 @@ pub const Queue = std.io.BufferedWriter(4096, std.fs.File.Writer);
 ///    }
 /// }
 ///
-/// const q = queue(.stdout, .{
+/// const q = Queue.init(.stdout);
+/// try q.writeAll(.{
 ///     Style { .fg = Color.Green },
 ///     '✓',
 ///     Reset.fg(),
@@ -105,25 +104,37 @@ pub const Queue = std.io.BufferedWriter(4096, std.fs.File.Writer);
 ///     CustomType{},
 /// });
 ///
+/// try q.write("Some other item");
+///
 /// // ... Additional logic
 ///
 /// try q.flush();
 /// ```
-pub fn queue(source: Stream, ops: anytype) !Queue {
-    const output = switch (source) {
-        .stdout => std.io.getStdOut().writer(),
-        .stderr => std.io.getStdErr().writer(),
-    };
+pub const Queue = struct {
+    buffer: std.io.BufferedWriter(4096, std.fs.File.Writer),
 
-    var buffer = std.io.bufferedWriter(output);
-    const writer = buffer.writer();
-
-    inline for (ops) |op| {
-        try writeOp(op, writer);
+    pub fn init(stream: Stream) @This() {
+        const output = switch (stream) {
+            .stdout => std.io.getStdOut().writer(),
+            .stderr => std.io.getStdErr().writer(),
+        };
+        return .{ .buffer = std.io.bufferedWriter(output) };
     }
 
-    return buffer;
-}
+    pub fn write(self: *@This(), op: anytype) !void {
+        try writeOp(op, self.buffer.writer());
+    }
+
+    pub fn writeAll(self: *@This(), ops: anytype) !void {
+        inline for (ops) |op| {
+            try writeOp(op, self.buffer.writer());
+        }
+    }
+
+    pub fn flush(self: *@This()) !void {
+        try self.buffer.flush();
+    }
+};
 
 /// Write the value, if it's type is supported, to the provider writer
 ///
