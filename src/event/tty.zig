@@ -299,7 +299,7 @@ pub const EventStream = struct {
                 }
 
                 switch (keycode) {
-                    ._modifier => |modifier| {
+                    .modifier => |modifier| {
                         switch (modifier) {
                             .left_alt, .right_alt => modifiers.alt = true,
                             .left_control, .right_control => modifiers.ctrl = true,
@@ -717,20 +717,20 @@ fn translateFunctionalKeyCode(codepoint: u21) ?std.meta.Tuple(&[_]type{ KeyCode,
         57438 => .media(.lower_volume),
         57439 => .media(.raise_volume),
         57440 => .media(.mute_volume),
-        57441 => .modifier(.left_shift),
-        57442 => .modifier(.left_control),
-        57443 => .modifier(.left_alt),
-        57444 => .modifier(.left_super),
-        57445 => .modifier(.left_hyper),
-        57446 => .modifier(.left_meta),
-        57447 => .modifier(.right_shift),
-        57448 => .modifier(.right_control),
-        57449 => .modifier(.right_alt),
-        57450 => .modifier(.right_super),
-        57451 => .modifier(.right_hyper),
-        57452 => .modifier(.right_meta),
-        57453 => .modifier(.iso_level_3_shift),
-        57454 => .modifier(.iso_level_5_shift),
+        57441 => .mod(.left_shift),
+        57442 => .mod(.left_control),
+        57443 => .mod(.left_alt),
+        57444 => .mod(.left_super),
+        57445 => .mod(.left_hyper),
+        57446 => .mod(.left_meta),
+        57447 => .mod(.right_shift),
+        57448 => .mod(.right_control),
+        57449 => .mod(.right_alt),
+        57450 => .mod(.right_super),
+        57451 => .mod(.right_hyper),
+        57452 => .mod(.right_meta),
+        57453 => .mod(.iso_level_3_shift),
+        57454 => .mod(.iso_level_5_shift),
         else => null,
     };
 
