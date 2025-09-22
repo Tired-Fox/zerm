@@ -241,7 +241,7 @@ pub const Color = union(enum) {
         return .{ .ansi_xterm = xt };
     }
 
-    pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         switch (self) {
             .system_black => try writer.print("0", .{}),
             .system_red => try writer.print("1", .{}),
@@ -350,7 +350,7 @@ pub const Style = struct {
         };
     }
 
-    pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         if (self.mod != Modifiers.empty or self.fg != null or self.bg != null) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
@@ -416,12 +416,12 @@ pub const Style = struct {
             }
 
             if (self.fg) |_fg| {
-                try writer.print("{s}3{s}", .{ if (at_least_one) ";" else "", _fg });
+                try writer.print("{s}3{f}", .{ if (at_least_one) ";" else "", _fg });
                 at_least_one = true;
             }
 
             if (self.bg) |_bg| {
-                try writer.print("{s}4{s}", .{ if (at_least_one) ";" else "", _bg });
+                try writer.print("{s}4{f}", .{ if (at_least_one) ";" else "", _bg });
                 at_least_one = true;
             }
             try writer.print("m", .{});
@@ -450,7 +450,7 @@ pub const Reset = struct {
     pub const blink: @This() = .{ .mod = .{ .blink = true } };
     pub const reverse: @This() = .{ .mod = .{ .reverse = true } };
 
-    pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         if (self.mod != Modifiers.empty or self.fg or self.bg or self.underline_color) {
             var at_least_one = false;
             try writer.print("\x1b[", .{});
@@ -531,10 +531,10 @@ pub fn Styled(T: type) type {
             };
         }
 
-        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-            try writer.print("{s}", .{ self.style });
+        pub fn format(self: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+            try writer.print("{f}", .{ self.style });
             try writeOp(self.value, writer);
-            try writer.print("{s}", .{ self.style.reset() });
+            try writer.print("{f}", .{ self.style.reset() });
         }
     };
 }
@@ -573,12 +573,12 @@ pub fn SupportsColor(T: type) type {
             };
         }
 
-        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(self: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
             if (onCached(self.stream)) |cached| {
                 if (cached.has_basic) {
-                    try writer.print("{s}", .{ self.style });
+                    try writer.print("{f}", .{ self.style });
                     try writeOp(self.value, writer);
-                    try writer.print("{s}", .{ self.style.reset() });
+                    try writer.print("{f}", .{ self.style.reset() });
                     return;
                 }
             }

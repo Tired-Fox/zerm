@@ -16,21 +16,27 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const module = b.addModule("zerm", .{ .root_source_file = b.path("src/root.zig") });
+    const module = b.addModule("zerm", .{
+        .root_source_file = b.path("src/root.zig")
+    });
 
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zerm", .module = module },
+            },
+        }),
     });
-    lib_unit_tests.root_module.addImport("zerm", module);
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
 
     inline for (examples) |example| {
-        addExample(b, target, optimize, example, &[_]ModuleMap{
-            .{ "zerm", module }
+        addExample(b, target, optimize, example, &.{
+            .{ .name = "zerm", .module = module }
         });
     }
 }
@@ -40,18 +46,17 @@ pub fn addExample(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     comptime example: Example,
-    modules: []const ModuleMap,
+    imports: []const std.Build.Module.Import,
 ) void {
     const exe = b.addExecutable(.{
         .name = example.name,
-        .root_source_file = b.path(example.path),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(example.path),
+            .target = target,
+            .optimize = optimize,
+            .imports = imports
+        })
     });
-
-    for (modules) |module| {
-        exe.root_module.addImport(module[0], module[1]);
-    }
 
     const ecmd = b.addRunArtifact(exe);
     ecmd.step.dependOn(b.getInstallStep());

@@ -18,9 +18,16 @@ const execute = zerm.execute;
 
 pub fn main() !void {
     // This is needed for windows since it wants utf16
-    // but zig encodes it's output as utf8
-    const utf8_ctx = Utf8ConsoleOutput.init();
-    defer utf8_ctx.deinit();
+    //
+    // This is only needed if you are printing non ascii directly
+    // to stdout or stderr.
+    //
+    // The execute and queue flows already handle this and converts the utf8
+    // to utf16 using a buffer and chunking the output to avoid allocations.
+    // However this could cause multiple writes if the output is large enough.
+    //
+    // const utf8_ctx = Utf8ConsoleOutput.init();
+    // defer utf8_ctx.deinit();
 
     try execute(.stdout, .{
         Screen{ .title = "Hello World" },
@@ -46,7 +53,7 @@ pub fn main() !void {
                 Reset { .fg = true },
                 " Loading..."
             });
-            std.time.sleep(80 * std.time.ns_per_ms);
+            std.Thread.sleep(80 * std.time.ns_per_ms);
         }
     }
 

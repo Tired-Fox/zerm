@@ -46,8 +46,9 @@ pub const EventStream = struct {
     ///
     /// This method will block until the next event
     pub fn parseEvent(self: *@This()) !?Event {
-        const stdin = std.io.getStdIn();
-        const reader = stdin.reader();
+        const stdin = std.fs.File.stdin();
+        var buffer: [1024]u8 = undefined;
+        var reader = stdin.reader(&buffer);
 
         var buff: [1]u8 = undefined;
         _ = try reader.read(&buff);
@@ -57,7 +58,7 @@ pub const EventStream = struct {
                 if (self.pollEvent()) {
                     _ = try reader.read(&buff);
                     switch (buff[0]) {
-                        '[' => return try self.parseCsi(reader),
+                        '[' => return try self.parseCsi(&reader),
                         'O' => if (self.pollEvent()) {
                             _ = try reader.read(&buff);
                             switch (buff[0]) {
@@ -110,14 +111,14 @@ pub const EventStream = struct {
         return null;
     }
 
-    fn parseCsi(self: *@This(), reader: anytype) !?Event {
+    fn parseCsi(self: *@This(), reader: *std.fs.File.Reader) !?Event {
         var buff = [1]u8{0};
-        var buffer = std.ArrayList(u8).init(self.alloc);
-        defer buffer.deinit();
+        var buffer: std.ArrayList(u8) = .empty;
+        defer buffer.deinit(self.alloc);
 
         while (self.pollEvent()) {
             _ = try reader.read(&buff);
-            try buffer.append(buff[0]);
+            try buffer.append(self.alloc, buff[0]);
             if (isSequenceEnd(buff[0])) break;
         }
 
@@ -420,28 +421,28 @@ pub const EventStream = struct {
         return null;
     }
 
-    fn parseCsiBracketedPaste(self: *@This(), reader: anytype) !?Event {
+    fn parseCsiBracketedPaste(self: *@This(), reader: *std.fs.File.Reader) !?Event {
         var buff = [1]u8{0};
-        var buffer = std.ArrayList(u8).init(self.alloc);
-        defer buffer.deinit();
+        var buffer: std.ArrayList(u8) = .empty;
+        defer buffer.deinit(self.alloc);
 
         while (self.pollEvent()) {
             _ = try reader.read(&buff);
             switch (buff[0]) {
                 '~' => {
                     if (buffer.items.len >= 5 and std.mem.eql(u8, buffer.items[buffer.items.len-5..buffer.items.len], "\x1b[201")) {
-                        buffer.shrinkAndFree(buffer.items.len - 5);
+                        buffer.shrinkAndFree(self.alloc, buffer.items.len - 5);
                         break;
                     }
-                    try buffer.append(buff[0]);
+                    try buffer.append(self.alloc, buff[0]);
                 },
-                else => try buffer.append(buff[0]),
+                else => try buffer.append(self.alloc, buff[0]),
             }
         }
 
         if (self.paste) |paste| self.alloc.free(paste);
 
-        const content = try buffer.toOwnedSlice();
+        const content = try buffer.toOwnedSlice(self.alloc);
         self.paste = content;
         return Event{ .paste = content };
     }

@@ -177,32 +177,32 @@ pub extern "user32" fn ToUnicodeEx(
     cchBuff: i32,
     wFlags: u32,
     dwhkl: ?HKL,
-) callconv(@import("std").os.windows.WINAPI) i32;
+) callconv(.winapi) i32;
 
 extern "user32" fn GetForegroundWindow(
-) callconv(.Win64) ?std.os.windows.HANDLE;
+) callconv(.winapi) ?std.os.windows.HANDLE;
 
 extern "user32" fn GetWindowThreadProcessId(
     hwnd: ?std.os.windows.HANDLE,
     processId: ?*u32,
-) callconv(.Win64) ?std.os.windows.HANDLE;
+) callconv(.winapi) ?std.os.windows.HANDLE;
 
 const HKL = *opaque{};
 extern "user32" fn GetKeyboardLayout(
     idThread: u32,
-) callconv(.Win64) ?HKL;
+) callconv(.winapi) ?HKL;
 
 extern "kernel32" fn GetNumberOfConsoleInputEvents(
     hConsoleInput: std.os.windows.HANDLE,
     lpcNumberOfEvents: *u16,
-) callconv(.Win64) std.os.windows.BOOL;
+) callconv(.winapi) std.os.windows.BOOL;
 
 pub extern "kernel32" fn ReadConsoleInputW(
     hConsoleInput: ?std.os.windows.HANDLE,
     lpBuffer: [*]INPUT_RECORD,
     nLength: u32,
     lpNumberOfEventsRead: ?*u32,
-) callconv(@import("std").os.windows.WINAPI) std.os.windows.BOOL;
+) callconv(.winapi) std.os.windows.BOOL;
 
 pub fn getNumberOfConsoleInputEvents() !u16 {
     var count: u16 = 0;

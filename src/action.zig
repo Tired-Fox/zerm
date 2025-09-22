@@ -6,17 +6,17 @@ const Utils = switch (@import("builtin").target.os.tag) {
         extern "kernel32" fn GetConsoleMode(
             hConsoleInput: std.os.windows.HANDLE,
             lpMode: *CONSOLE_MODE
-        ) callconv(.Win64) std.os.windows.BOOL;
+        ) callconv(.winapi) std.os.windows.BOOL;
 
         extern "kernel32" fn SetConsoleMode(
             hConsoleInput: std.os.windows.HANDLE,
             dwMode: CONSOLE_MODE
-        ) callconv(.Win64) std.os.windows.BOOL;
+        ) callconv(.winapi) std.os.windows.BOOL;
 
         extern "kernel32" fn GetConsoleScreenBufferInfo(
             hConsoleInput: std.os.windows.HANDLE,
             console_screen_buffer_info: *CONSOLE_SCREEN_BUFFER_INFO
-        ) callconv(.Win64) std.os.windows.BOOL;
+        ) callconv(.winapi) std.os.windows.BOOL;
 
         pub const COORD = packed struct {
             x: i16 = 0,
@@ -203,7 +203,7 @@ pub const Cursor = struct {
         user,
     };
 
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(value: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         if (value.save) try writer.print("\x1b[s", .{});
         if (value.restore) try writer.print("\x1b[u", .{});
 
@@ -403,7 +403,7 @@ pub const Screen = union(enum) {
         }
     }
 
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(value: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         switch (value) {
             .scroll_up => |u| try writer.print("\x1b[{d}S", .{u}),
             .scroll_down => |u| try writer.print("\x1b[{d}T", .{u}),
@@ -433,7 +433,7 @@ pub const Line = union(enum) {
     /// Erase all the specific lines with `space` characters
     erase: Erase,
 
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(value: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         switch (value) {
             .insert => |u| try writer.print("\x1b[{d}L", .{u}),
             .delete => |u| try writer.print("\x1b[{d}M", .{u}),
@@ -457,7 +457,7 @@ pub const Character = union(enum) {
     /// by overwriting them with a `space` character
     erase: u16,
 
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(value: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         switch (value) {
             .insert => |u| try writer.print("\x1b[{d}@", .{u}),
             .delete => |u| try writer.print("\x1b[{d}P", .{u}),
@@ -484,18 +484,18 @@ pub const Capture = enum {
     /// into the terminal
     disable_bracketed_paste,
 
-    pub fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(value: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         switch(value) {
             .enable_mouse => {
                 switch(@import("builtin").target.os.tag) {
                     .windows => {
                         MODE.mutex.lock();
                         defer MODE.mutex.unlock();
-                        const stdin = try std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
+                        const stdin = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch return error.WriteFailed;
 
                         var mode = Utils.CONSOLE_MODE{};
                         if (Utils.GetConsoleMode(stdin, &mode) == 0) {
-                            return error.UnkownStdinMode;
+                            return error.WriteFailed;
                         }
                         MODE.original = mode;
 
@@ -505,7 +505,7 @@ pub const Capture = enum {
                             .Or(Utils.MOUSE_MODE);
 
                         if (Utils.SetConsoleMode(stdin, mode) == 0) {
-                            return error.InvalidStdinEntry;
+                            return error.WriteFailed;
                         }
                     },
                     // ?1000h: Normal tracking: Send mouse X & Y on button press and release
@@ -522,9 +522,9 @@ pub const Capture = enum {
                         MODE.mutex.lock();
                         defer MODE.mutex.unlock();
                         if (MODE.original) |original| {
-                            const stdin = try std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
+                            const stdin = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch return error.WriteFailed;
                             if (Utils.SetConsoleMode(stdin, original) == 0) {
-                                return error.InvalidStdinEntry;
+                                return error.WriteFailed;
                             }
                         }
                     },
@@ -545,7 +545,12 @@ pub const Capture = enum {
 /// until `\x1b[x;yR` is read.
 pub fn getCursorPos() !std.meta.Tuple(&[_]type{ u16, u16 }) {
     // Query for cursor position
-    try std.io.getStdOut().writer().print("\x1b[6n", .{});
+    {
+        var buffer: [8]u8 = undefined;
+        var writer = std.fs.File.stdout().writer(&buffer);
+        try writer.interface.print("\x1b[6n", .{});
+        try writer.interface.flush();
+    }
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
